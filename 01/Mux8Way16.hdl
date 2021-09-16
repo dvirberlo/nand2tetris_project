@@ -1,0 +1,45 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/01/Mux8Way16.hdl
+
+/**
+ * 8-way 16-bit multiplexor:
+ * out = a if sel == 000
+ *       b if sel == 001
+ *       etc.
+ *       h if sel == 111
+ */
+
+CHIP Mux8Way16 {
+    IN a[16], b[16], c[16], d[16],
+       e[16], f[16], g[16], h[16],
+       sel[3];
+    OUT out[16];
+
+    PARTS:
+    Not(in=sel[0], out=nsel0);
+    Not(in=sel[1], out=nsel1);
+    Not(in=sel[2], out=nsel2);
+
+    And(a=nsel2, b=nsel1, out=sel00x);
+    And(a=nsel2, b=sel[1], out=sel01x);
+    And(a=sel[2], b=nsel1, out=sel10x);
+    And(a=sel[2], b=sel[1], out=sel11x);
+
+    And(a=sel[0], b=sel00x, out=ob);
+    And(a=sel01x, b=nsel0, out=oc);
+    And(a=sel01x, b=sel[0], out=od);
+    And(a=sel10x, b=nsel0, out=oe);
+    And(a=sel10x, b=sel[0], out=of);
+    And(a=sel11x, b=nsel0, out=og);
+    And(a=sel11x, b=sel[0], out=oh);
+
+    Mux16(a=a, b=b, sel=ob, out=temp2);
+    Mux16(a=temp2, b=c, sel=oc, out=temp3);
+    Mux16(a=temp3, b=d, sel=od, out=temp4);
+    Mux16(a=temp4, b=e, sel=oe, out=temp5);
+    Mux16(a=temp5, b=f, sel=of, out=temp6);
+    Mux16(a=temp6, b=g, sel=og, out=temp7);
+    Mux16(a=temp7, b=h, sel=oh, out=out);
+}
