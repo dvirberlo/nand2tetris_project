@@ -4,7 +4,7 @@ import sys
 class JCompiler:
     ext = '.jack'
     # extP = '.vm'
-    extP = '.vm.xml'
+    extP = 'T.vm.xml'
     version = '0.1'
     name = 'JCompiler'
 
@@ -19,12 +19,14 @@ class JCompiler:
     def parse(self, filepath, writeCallback):
         filename = os.path.basename(filepath).replace(self.ext, '')
         with open(filepath) as file:
-            for line in file:
-                lineCode = self._parseMeaningless(line)
-                if line != '':
-                    # lineCode = self._parseSyntax( self._parseSyntax(lineCode))
-                    lineCode = self._parseSyntax(lineCode)
-                    writeCallback(lineCode)
+          writeCallback('<tokens>\n')
+          for line in file:
+              lineCode = self._parseMeaningless(line)
+              if line != '':
+                  # lineCode = self._parseSyntax( self._parseSyntax(lineCode))
+                  lineCode = self._parseTokens(lineCode)
+                  writeCallback(lineCode)
+          writeCallback('</tokens>\n')
 
     def _parseMeaningless(self, line):
       multyLineS = '/*'
@@ -48,7 +50,7 @@ class JCompiler:
         line = line[1:]
       return line
     
-    def _parseSyntax(self, line):
+    def _parseTokens(self, line):
       arr = []
       while line != '':
         if line[0] == ' ':
@@ -60,22 +62,20 @@ class JCompiler:
           string = line.split(self.stringS)[1]
           arr.append(['stringConstant', string])
           line = line[len(string)+2:]
-        elif line.split(' ')[0][:self._firstSymbolIndex(line.split(' '))].isdigit():
-          integer = line.split(' ')[0][:self._firstSymbolIndex(line.split(' '))]
-          arr.append(['integerConstant', integer])
-          line = line[len(integer):]
-        elif line.split(' ')[0] in self.keywords:
-          keyword = line.split(' ')[0]
-          arr.append(['keyword', keyword])
-          line = line[len(keyword):]
         else:
-          identifier = line.split(' ')[0]
-          identifier = identifier[:self._firstSymbolIndex(identifier)]
-          arr.append(['identifier', identifier])
-          line = line[len(identifier):]
+          nextword = line.split(' ')[0][:self._firstSymbolIndex(line.split(' ')[0])]
+          if nextword.isdigit():
+            arr.append(['integerConstant', nextword])
+            line = line[len(nextword):]
+          elif nextword in self.keywords:
+            arr.append(['keyword', nextword])
+            line = line[len(nextword):]
+          else:
+            arr.append(['identifier', nextword])
+            line = line[len(nextword):]
       xml = ''
       for ele in arr:
-        xml += '<'+ele[0]+'> '+ele[1]+' </'+ele[0]+'>\n'
+        xml += '<'+ele[0]+'> '+ele[1].replace('<', '&lt;').replace('>', '&gt;')+' </'+ele[0]+'>\n'
       return xml
     def _firstSymbolIndex(self, string):
       index = len(string)
