@@ -156,7 +156,13 @@ class JCompiler:
         for token in tokens:
             wrriten = False
             [cls, val] = token
-            # print(self.stack)
+            if val in self.parseDict.keys():
+                # TODO support fParent
+                # tree start
+                [treeName, grammer, before] = self.parseDict[val]['self']
+                xml += self._xmlTree(token, treeName, before, False)
+                wrriten = True
+                self.stack.append([val, treeName, 0])
             if len(self.stack) > 0 and self.stack[-1][0] in self.parseDict:
                 [key, treeName, counter] = self.stack[-1]
                 if val == self.parseDict[key]['self'][1]:
@@ -172,13 +178,6 @@ class JCompiler:
                     xml += self._xmlTree(token, childName, before, close)
                     wrriten = True
                     self.stack[-1] = [key, treeName, counter+1]
-            if val in self.parseDict.keys():
-                # TODO support fParent
-                # tree start
-                [treeName, grammer, before] = self.parseDict[val]['self']
-                xml += self._xmlTree(token, treeName, before, False)
-                wrriten = True
-                self.stack.append([val, treeName, 0])
             
             # specials
             if self.stack != [] and self.stack[-1][1] == 'statements' and val == '}':
