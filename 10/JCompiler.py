@@ -121,78 +121,133 @@ class JCompiler:
         },
         'let': {
             'self': ['letStatement', ';', True],
-            'children': []
+            'children': [],
+            'fParent': 'statements',
         },
         'do': {
             'self': ['doStatement', ';', True],
-            'children': []
+            'children': [],
+            'fParent': 'statements',
         },
         'if': {
-            'self': ['ifStatement', ';', True],
-            'children': [
-                ['statements', '{}', True],
-            ]
+            'self': ['ifStatement', '}', True],
+            'children': [],
+            'fParent': 'statements',
         },
         'else': {
-            'self': ['', ';', True],
-            'children': [
-                ['statements', '{}', False],
-            ]
+            'self': ['', '}', True],
+            'children': [],
+            'fParent': 'statements',
         },
         'while': {
             'self': ['whileStatement', '}', True],
-            'children': [
-                ['statements', '{}', False],
-            ]
+            'children': [],
+            'fParent': 'statements',
         },
         'return': {
             'self': ['returnStatement', ';', True],
-            'children': []
+            'children': [],
+            'fParent': 'statements',
         },
     }
 
     def _parse(self, tokens):
         xml = ''
         for token in tokens:
-            preToken, postToken = '', ''
+            wrriten = False
             [cls, val] = token
-            if len(self.stack) > 0:
-                [key, name, counter] = self.stack[-1]
+            # print(self.stack)
+            if len(self.stack) > 0 and self.stack[-1][0] in self.parseDict:
+                [key, treeName, counter] = self.stack[-1]
                 if val == self.parseDict[key]['self'][1]:
-                    # statement end
+                    # tree end
+                    before = self.parseDict[key]['self'][2]
+                    xml += self._xmlTree(token, treeName, before, True)
+                    wrriten = True
                     self.stack.pop()
-                    write = self._xml(name, True) if name else ''
-                    if self.parseDict[key]['self'][2]: postToken = write
-                    else: preToken = write
                 elif len(self.parseDict[key]['children']) > 0 and val == self.parseDict[key]['children'][math.floor(counter/2)][1][counter%2]:
-                    # statement child start/end
+                    # tree child start/end
                     close = counter%2 == 1
                     [childName, childG, before] = self.parseDict[key]['children'][math.floor(counter/2)]
-                    self.stack[-1] = [key, name, counter+1]
-                    write = self._xml(childName, close) if childName else ''
-                    if close: before = not before
-                    if before: preToken = write
-                    else: postToken = write
+                    xml += self._xmlTree(token, childName, before, close)
+                    wrriten = True
+                    self.stack[-1] = [key, treeName, counter+1]
             if val in self.parseDict.keys():
-                # statement start
-                [name, grammer, before] = self.parseDict[val]['self']
-                self.stack.append([val, name, 0])
-                write = self._xml(name) if name else ''
-                if before: preToken = write
-                else: postToken = write
-            else:
-                # TODO expression/List -> )]};
-                pass
-            xml += preToken + self._xml(token) + postToken
+                # TODO support fParent
+                # tree start
+                [treeName, grammer, before] = self.parseDict[val]['self']
+                xml += self._xmlTree(token, treeName, before, False)
+                wrriten = True
+                self.stack.append([val, treeName, 0])
+            
+            # specials
+            if self.stack != [] and self.stack[-1][1] == 'statements' and val == '}':
+                    treeName = 'statements'
+                    xml += self._xmlTree(token, treeName, True, True)
+                    self.stack.pop()
+            if self.stack != [] and self.stack[-1][1] == 'expressionList' and val != ',':
+                treeName = 'expression'
+                xml += self._xmlTree(token, treeName, True)
+                self.stack.append([treeName, treeName, 0])
+            if not wrriten:
+                if val in '()':
+                    treeName = 'expressionList'
+                    close = val == ')'
+                    if close or self.lastToken[0] == 'identifier':
+                        xml += self._xmlTree(token, treeName, False, close)
+                        wrriten = True
+                        if close:
+                            if self.stack != [] and self.stack[-1][1] == 'expression':
+                                self.stack.pop()
+                            self.stack.pop()
+                        else: self.stack.append([treeName, treeName, 0])
+                elif val in '=[]' or (val == ';' and self.stack != [] and self.stack[-1][1] == 'expression'):
+                    close = val in '];'
+                    treeName = 'expression'
+                    xml += self._xmlTree(token, treeName, False, close)
+                    wrriten = True
+                    if close: self.stack.pop()
+                    else: self.stack.append([treeName, treeName, 0])
+                elif self.stack != [] and self.stack[-1][1] == 'expression' and cls != 'symbol':
+                    treeName = 'term'
+                    xml += self._xmlTree(token, treeName, True)
+                    xml += self._xml(self._xmlIndent(), treeName, True)
+                    wrriten = True
+                elif self.stack != [] and self.stack[-1][1] == 'expressionList' and val == ',':
+                    treeName = 'expression'
+                    xml += self._xmlTree(token, treeName, True, True)
+                    wrriten = True
+                    self.stack.pop()
+                else:
+                    xml += self._xml(self._xmlIndent(), token)
             self.lastToken = token
         return xml
 
-    def _xml(self, obj, close=False):
-        indent = len(self.stack) * '  '
-        if (type(obj) == str):
-            return indent + ('</' if close else '<') + self._xmlLang(obj) + ">\n"
+    def _xmlIndent(self):
+        stackLen = len(self.stack)
+        if stackLen > 0 and self.stack[-1][2]%2 == 1:
+            stackLen += 1
+        return stackLen
+    def _xmlTree(self, token, treeName, before, close=False):
+        indent = self._xmlIndent()
+        if not treeName:
+            return self._xml(indent, token, close)
+        if not close:
+            if before:
+                return self._xml(indent, treeName, close) + self._xml(indent+1, token, close)
+            else:
+                return self._xml(indent, token, close) + self._xml(indent, treeName, close)
         else:
-            return indent + '<'+obj[0]+'> ' +self._xmlLang(obj[1]) +' </'+obj[0]+'>\n'
+            if before:
+                return self._xml(indent, token, close) + self._xml(indent-1, treeName, close)
+            else:
+                return self._xml(indent-1, treeName, close) + self._xml(indent-1, token, close)
+    def _xml(self, indentC,  obj, close=False):
+        indentS = '  '
+        if (type(obj) == str):
+            return indentC * indentS + ('</' if close else '<') + self._xmlLang(obj) + ">\n"
+        else:
+            return indentC * indentS + '<'+obj[0]+'> ' +self._xmlLang(obj[1]) +' </'+obj[0]+'>\n'
     def _xmlLang(self, str):
         return str.replace('<', '&lt;').replace('>', '&gt;')
 
