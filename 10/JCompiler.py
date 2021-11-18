@@ -157,8 +157,12 @@ class JCompiler:
             wrriten = False
             [cls, val] = token
             if val in self.parseDict.keys():
-                # TODO support fParent
                 # tree start
+                if 'fParent' in self.parseDict[val]:
+                    parentName = self.parseDict[val]['fParent']
+                    if self.stack == [] or self.stack[-1][1] != parentName:
+                        xml += self._xml(self._xmlIndent(), parentName)
+                        self.stack.append([parentName, parentName, 0])
                 [treeName, grammer, before] = self.parseDict[val]['self']
                 xml += self._xmlTree(token, treeName, before, False)
                 wrriten = True
