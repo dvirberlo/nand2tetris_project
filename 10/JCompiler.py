@@ -122,72 +122,109 @@ class JCompiler:
         'let': {
             'self': ['letStatement', ';', True],
             'children': [],
-            'fParent': 'statements',
         },
         'do': {
             'self': ['doStatement', ';', True],
             'children': [],
-            'fParent': 'statements',
         },
         'if': {
             'self': ['ifStatement', '}', True],
             'children': [],
-            'fParent': 'statements',
         },
         'else': {
             'self': ['', '}', True],
             'children': [],
-            'fParent': 'statements',
         },
         'while': {
             'self': ['whileStatement', '}', True],
             'children': [],
-            'fParent': 'statements',
         },
         'return': {
             'self': ['returnStatement', ';', True],
             'children': [],
-            'fParent': 'statements',
         },
     }
+    statements = ['letStatement', 'doStatement', 'ifStatement', '', 'whileStatement', 'returnStatement']
+    
+    def _parseTokenTree(self, token):
+        result = { 'token': False, 'tree': False, 'before':False, 'statements': False, 'close': False, 'append': [], 'pop': 0, 'counter': 0, 'wrriten': False }
+        [cls, val] = token
+        if val in self.parseDict.keys():
+            # tree start
+            [treeName, grammer, before] = self.parseDict[val]['self']
+            parentName = 'statements'
+            if treeName in self.statements and (len(self.stack) < 2 or self.stack[-2][1] != parentName):
+                self.stack.append([parentName, parentName, 0])
+                result['statements'] = True
+            result['token'] = token
+            result['tree'] = treeName
+            result['before'] = before
+            result['close'] = False
+            result['wrriten'] = True
+            result['append'].append([val, treeName, 0])
+        elif len(self.stack) > 0 and self.stack[-1][0] in self.parseDict:
+            [key, treeName, counter] = self.stack[-1]
+            if val == self.parseDict[key]['self'][1]:
+                # tree end
+                before = self.parseDict[key]['self'][2]
+                result['token'] = token
+                result['tree'] = treeName
+                result['before'] = before
+                result['close'] = True
+                result['wrriten'] = True
+                result['pop'] += 1
+            elif len(self.parseDict[key]['children']) > 0 and val == self.parseDict[key]['children'][math.floor(counter/2)][1][counter%2]:
+                # tree child start/end
+                close = counter%2 == 1
+                [childName, childG, before] = self.parseDict[key]['children'][math.floor(counter/2)]
+                result['token'] = token
+                result['tree'] = childName
+                result['before'] = before
+                result['close'] = close
+                result['wrriten'] = True
+                result['counter'] += 1
+        if self.x < 20: print(result)
+        return result.values()
 
+    def _performParseTree(self, Ptree, val):
+        xml = ''
+        (Rtoken, Rtree, Rbefore, Rstatements, Rclose, Rappend, Rpop, Rcounter, Rwrriten) = Ptree
+        if Rwrriten:
+            xml += self._xmlTree(Rtoken, Rtree, Rbefore, Rclose)
+        if self.stack != []:
+            self.stack = self.stack[Rpop:]
+        for item in Rappend:
+            self.stack.append(item)
+        if self.stack != [] and self.stack[-1][0] in self.parseDict:
+            [key, treeName, counter] = self.stack[-1]
+            if len(self.parseDict[key]['children']) > 0 and val == self.parseDict[key]['children'][math.floor(counter/2)][1][counter%2]:
+                [childName, childG, before] = self.parseDict[key]['children'][math.floor(counter/2)]
+                self.stack[-1] = [key, treeName, counter + Rcounter]
+    
+    x = 1
     def _parse(self, tokens):
         xml = ''
         for token in tokens:
             wrriten = False
             [cls, val] = token
-            if val in self.parseDict.keys():
-                # tree start
-                if 'fParent' in self.parseDict[val]:
-                    parentName = self.parseDict[val]['fParent']
-                    if self.stack == [] or self.stack[-1][1] != parentName:
-                        xml += self._xml(self._xmlIndent(), parentName)
-                        self.stack.append([parentName, parentName, 0])
-                [treeName, grammer, before] = self.parseDict[val]['self']
-                xml += self._xmlTree(token, treeName, before, False)
-                wrriten = True
-                self.stack.append([val, treeName, 0])
-            if len(self.stack) > 0 and self.stack[-1][0] in self.parseDict:
-                [key, treeName, counter] = self.stack[-1]
-                if val == self.parseDict[key]['self'][1]:
-                    # tree end
-                    before = self.parseDict[key]['self'][2]
-                    xml += self._xmlTree(token, treeName, before, True)
-                    wrriten = True
-                    self.stack.pop()
-                elif len(self.parseDict[key]['children']) > 0 and val == self.parseDict[key]['children'][math.floor(counter/2)][1][counter%2]:
-                    # tree child start/end
-                    close = counter%2 == 1
-                    [childName, childG, before] = self.parseDict[key]['children'][math.floor(counter/2)]
-                    xml += self._xmlTree(token, childName, before, close)
-                    wrriten = True
-                    self.stack[-1] = [key, treeName, counter+1]
             
+            
+            (Rtoken, Ptree, Rbefore, Rstatements, Rclose, Rappend, Rpop, Rcounter, Rwrriten) = self._parseTokenTree(token)
+            parentName = 'statements'
+            if Ptree in self.statements and (len(self.stack) < 2 or self.stack[-2][1] != parentName):
+                xml += self._xml(self._xmlIndent(), parentName, False)
+                self.stack.append([parentName, parentName, 0])
+            elif Ptree not in self.statements and len(self.stack) > 2 and self.stack[-2][1] == parentName:
+                xml += self._xml(self._xmlIndent(), parentName, True)
+                self.stack.pop()
+            Ptree = self._parseTokenTree(token)
+            (Rtoken, Rtree, Rbefore, Rstatements, Rclose, Rappend, Rpop, Rcounter, Rwrriten) = Ptree
+            self._performParseTree(Ptree, val)
+            wrriten = Rwrriten
+
+            # if self.x < 100: print(self.stack)
+            self.x += 1
             # specials
-            if self.stack != [] and self.stack[-1][1] == 'statements' and val == '}':
-                    treeName = 'statements'
-                    xml += self._xmlTree(token, treeName, True, True)
-                    self.stack.pop()
             if self.stack != [] and self.stack[-1][1] == 'expressionList' and val != ',':
                 treeName = 'expression'
                 xml += self._xmlTree(token, treeName, True)
@@ -226,6 +263,14 @@ class JCompiler:
             self.lastToken = token
         return xml
 
+    def _statmentCheck(self, treeName):
+        xml = ''
+        if treeName not in self.statements and self.stack != [] and self.stack[-1][1] == 'statements':
+            parentName = 'statements'
+            xml += self._xml(self._xmlIndent()-1, parentName, True)
+            self.stack.pop()
+            self.stack.pop()
+        return xml
     def _xmlIndent(self):
         stackLen = len(self.stack)
         if stackLen > 0 and self.stack[-1][2]%2 == 1:
@@ -235,6 +280,12 @@ class JCompiler:
         indent = self._xmlIndent()
         if not treeName:
             return self._xml(indent, token, close)
+        # if before: tokenXml = self._xml(indent+1, token, close)
+        # else: tokenXml = self._xml(indent+1, token, close)
+        # treeXml = self._xml(indent, treeName, close)
+        # if close: before = not before
+        # if before: return treeXml + tokenXml
+        # else: return tokenXml + treeXml
         if not close:
             if before:
                 return self._xml(indent, treeName, close) + self._xml(indent+1, token, close)
