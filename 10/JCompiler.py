@@ -5,9 +5,10 @@ import math
 class JCompiler:
     ext = '.jack'
     # extP = '.vm'
-    extP = 'T.vm.xml'
+    extP = '.vm.xml'
     version = '0.1'
     name = 'JCompiler'
+    boot = ''
 
     stringS = '"'
     symbols = '{[]}().,;+-*/&!|<>='
@@ -16,7 +17,7 @@ class JCompiler:
     def __init__(self):
         self.insideComment = False
         self.stack = []
-        self.lastToken = False
+        self.lastToken = ['', 's']
 
     def compile(self, filepath, writeCallback):
         filename = os.path.basename(filepath).replace(self.ext, '')
@@ -102,6 +103,12 @@ class JCompiler:
         xml = ''
         expressionName = 'expression'
         termName = 'term'
+        if self.lastToken[1] == 'return' and val != ';':
+            xml += self._xml(self._xmlIndent(), expressionName, False)
+            self.stack.append({'val': expressionName})
+            xml += self._xmlTree(token, termName, True)
+            xml += self._xml(self._xmlIndent(), termName, True)
+            
         if val in '=[]' or (val == ';' and self.stack != [] and self.stack[-1]['val'] == expressionName):
             close = val in '];'
             if close:
@@ -130,20 +137,17 @@ class JCompiler:
         return xml
     def _isStatement(self, token):
         [cls, val] = token
-        keyWords = ['let', 'do', 'if', 'while', 'return']
-        keyMarks = [';']
+        keyWords = [['let'], ['do'], ['if'], ['while'], ['return']]
+        keyMarks = [ ';',     ';',    '}',    '}',       ';'      ]
         endName = 'Statement'
         xml = ''
-        if val in keyWords:
-            xml += self._xmlTree(token, val+endName, True, False)
-            self.stack.append({'val': val})
-            if val == 'return':
-                expressionName = 'expression'
-                xml += self._xml(self._xmlIndent(), expressionName, False)
-                self.stack.append({'val': expressionName})
-        elif val in keyMarks and self.stack != [] and self.stack[-1]['val'] in keyWords:
-            xml += self._xmlTree(token, self.stack[-1]['val']+endName, True, True)
-            self.stack.pop()
+        for idx in range(len(keyWords)):
+            if val in keyWords[idx]:
+                xml += self._xmlTree(token, val+endName, True, False)
+                self.stack.append({'val': val})
+            elif val in keyMarks[idx] and self.stack != [] and self.stack[-1]['val'] in keyWords[idx]:
+                xml += self._xmlTree(token, self.stack[-1]['val']+endName, True, True)
+                self.stack.pop()
         return xml
     def _isSubroutineDec(self, token):
         [cls, val] = token
@@ -202,24 +206,34 @@ class JCompiler:
         expressionName = 'expression'
         termName = 'term'
         if self.stack != [] and self.stack[-1]['val'] == expressionListName and val not in ',)':
-            xml += self._xmlTree(token, expressionName, True)
+            # xml += self._xmlTree(token, expressionName, True)
+            xml += self._xml(self._xmlIndent(), expressionName, False)
             self.stack.append({'val': expressionName})
         if not wrriten:
             if val in '()':
                 close = val == ')'
-                if close or self.lastToken[0] == 'identifier':
+                if (close and (self.stack[-2]['val'] == expressionListName or self.stack[-1]['val'] == expressionListName)) or (not close and self.lastToken[0] == 'identifier'):
+                    if self.stack[-1]['val'] == expressionName:
+                        self.stack.pop()
+                        xml += self._xml(self._xmlIndent(), expressionName, True)
                     xml += self._xmlTree(token, expressionListName, False, close)
                     if close:
                         if self.stack != [] and self.stack[-1]['val'] == expressionName:
                             self.stack.pop()
                         self.stack.pop()
                     else: self.stack.append({'val': expressionListName})
+                else:
+                    xml += self._xmlTree(token, expressionName, False, close)
+                    if not close: self.stack.append({'val': expressionName})
+                    else: self.stack.pop()
             elif self.stack != [] and self.stack[-1]['val'] == expressionName and cls != 'symbol':
                 xml += self._xmlTree(token, termName, True)
                 xml += self._xml(self._xmlIndent(), termName, True)
-            elif self.stack != [] and self.stack[-1]['val'] == expressionListName and val == ',':
-                xml += self._xmlTree(token, expressionName, True, True)
+            elif len(self.stack) > 2 and self.stack[-2]['val'] == expressionListName and val == ',':
+                xml += self._xmlTree(token, expressionName, False, True)
                 self.stack.pop()
+                xml += self._xml(self._xmlIndent(), expressionName, False)
+                self.stack.append({'val': expressionName})
             else:
                 xml += self._xml(self._xmlIndent(), token)
         return xml
@@ -265,8 +279,6 @@ def main(argv):
     forceWarn = 'WARNING: force mode is on.'
     removableArgs = {
         '-r': recursiveWarn, '--recursive':recursiveWarn,
-        '-fsm': forceWarn, '--force-single-mode': forceWarn,
-        '-fmm': forceWarn, '--force-multy-mode': forceWarn,
     }
     args = argv[1:]
     if len(args) == 0:
@@ -278,8 +290,8 @@ def main(argv):
     else:
         paths = args
         recursive = '-r' in args or '--recursive' in args
-        forceSingleMode = '-fsm' in args or '--force-single-mode' in args
-        forceMultyMode = '-fmm' in args or '--force-multy-mode' in args
+        forceSingleMode = True
+        forceMultyMode = False
         for rmArg in removableArgs:
             if rmArg in paths:
                 if removableArgs[rmArg]: print(removableArgs[rmArg])
@@ -306,21 +318,21 @@ def main(argv):
                         multyParse(trClass, dirPath, extFilenames)
 
 def singleParse(trClass, filepath):
-    asmPath = filepath.replace(trClass.ext, trClass.extP)
-    with open(asmPath, 'w') as asmFile:
-        def singleParseCallback(asm):
-            asmFile.write(asm)
+    destPath = filepath.replace(trClass.ext, trClass.extP)
+    with open(destPath, 'w') as destFile:
+        def singleParseCallback(text):
+            destFile.write(text)
         print(trClass.name + ' single-mode parse: ' + filepath + ' started... ', end='', flush=True)
         trClass().compile(filepath, singleParseCallback)
         print('done')
 
 def multyParse(trClass, dirPath, filenames):
-    asmPath = os.path.join(dirPath, os.path.basename(os.path.normpath(dirPath)) + trClass.extP)
-    with open(asmPath, 'w') as asmFile:
+    destPath = os.path.join(dirPath, os.path.basename(os.path.normpath(dirPath)) + trClass.extP)
+    with open(destPath, 'w') as destFile:
         translator = trClass()
-        asmFile.write(translator.boot)
-        def multyParseCallback(asm):
-            asmFile.write(asm)
+        destFile.write(translator.boot)
+        def multyParseCallback(text):
+            destFile.write(text)
         print(trClass.name + ' multy-mode parse: ' + dirPath + ' started... ', flush=True)
         for filename in filenames:
             filePath = os.path.join(dirPath, filename)
