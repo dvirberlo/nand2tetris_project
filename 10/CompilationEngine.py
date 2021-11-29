@@ -13,14 +13,13 @@ class CompilationEngine:
         self.indentC += indentI
     
     # xml functions:
-    def writeTokenXml(self, token) -> None:
+    def writeTokenXml(self, token, indentI= 0) -> None:
         assert type(token) == Token, 'token is not a Token'
-        self.write(self.indentC * self.indentS + '<'+token.kind+'> ' +self._xmlLang(token.string) +' </'+token.kind+'>\n')
+        self.write(self.indentC * self.indentS + '<'+token.kind+'> ' +self._xmlLang(token.string) +' </'+token.kind+'>\n', indentI)
     
-    def writeNonTerminal(self, element, close= False):
+    def writeNonTerminal(self, element, close= False, indentI= 0):
         assert type(element) == str, 'element should be str'
-        self.write(self.indentC * self.indentS + ('</' if close else '<') + element + '>\n')
-        self.indentC += -1 if close else 1
+        self.write(self.indentC * self.indentS + ('</' if close else '<') + element + '>\n', indentI)
 
     def _xmlLang(self, str) -> str:
         return str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\'', '&apos;').replace('"', '&quot;')

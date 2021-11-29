@@ -21,7 +21,7 @@ class JackTokenizer:
         self.currentToken = None
         self.lastToken = None
         self.file = file
-        self.line = self._removeMeaningless(self.file.readline())
+        self.line = ''
     
     def hasMoreTokens(self) -> bool:
         result = self._getNextToken(False) != None
@@ -38,6 +38,9 @@ class JackTokenizer:
     
     def getLastToken(self) -> Token:
         return self.lastToken
+    
+    def peekNextToken(self) -> Token:
+        return self._getNextToken(False)
 
     def _getNextToken(self, writeChange = True) -> Token:
         self.line = self._removeMeaningless(self.line)
