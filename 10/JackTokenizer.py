@@ -18,6 +18,8 @@ class JackTokenizer:
 
     def __init__(self, file) -> None:
         self.insideComment = False
+        self.currentToken = None
+        self.lastToken = None
         self.file = file
         self.line = self._removeMeaningless(self.file.readline())
     
@@ -27,8 +29,16 @@ class JackTokenizer:
     
     def advance(self) -> Token:
         assert self.hasMoreTokens(), 'no tokens left'
-        return self._getNextToken()
+        self.lastToken = self.currentToken
+        self.currentToken = self._getNextToken()
+        return self.currentToken
+
+    def getToken(self) -> Token:
+        return self.currentToken
     
+    def getLastToken(self) -> Token:
+        return self.lastToken
+
     def _getNextToken(self, writeChange = True) -> Token:
         self.line = self._removeMeaningless(self.line)
         while self.line == '':
