@@ -1,52 +1,61 @@
 from JackTokenizer import Token
 
 class CompilationEngine:
+    indentS = '  '
+
     def __init__(self, file) -> None:
         self.file = file
-
-    def write(self, string) -> None:
+        self.indentC = 0
+    
+    def write(self, string, indentI= 0) -> None:
         assert type(string) == str, 'writes to file strings only'
         self.file.write(string)
+        self.indentC += indentI
     
-    def writeTokenXml(self, token, indentC) -> None:
+    # xml functions:
+    def writeTokenXml(self, token) -> None:
         assert type(token) == Token, 'token is not a Token'
-        indentS = '  '
-        self.write(indentC * indentS + '<'+token.kind+'> ' +self._xmlLang(token.string) +' </'+token.kind+'>\n')
+        self.write(self.indentC * self.indentS + '<'+token.kind+'> ' +self._xmlLang(token.string) +' </'+token.kind+'>\n')
     
+    def writeNonTerminal(self, element, close= False):
+        assert type(element) == str, 'element should be str'
+        self.write(self.indentC * self.indentS + ('</' if close else '<') + element + '>\n')
+        self.indentC += -1 if close else 1
+
     def _xmlLang(self, str) -> str:
         return str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\'', '&apos;').replace('"', '&quot;')
     
+    # compile functions:
+    def Class(self, close= False) -> None:
+        self.writeNonTerminal('class', close)
     
-    def Class(self) -> None:
-        pass
+    def classVarDec(self, close= False) -> None:
+        self.writeNonTerminal('classVarDec', close)
     
-    def ClassVarDec(self) -> None:
-        pass
+    def SubroutineDec(self, close= False) -> None:
+        self.writeNonTerminal('subroutineDec', close)
     
-    def SubroutineDec(self) -> None:
-        pass
+    def ParameterList(self, close= False) -> None:
+        self.writeNonTerminal('parameterList', close)
     
-    def ParameterList(self) -> None:
-        pass
+    def SubroutineBody(self, close= False) -> None:
+        self.writeNonTerminal('subroutineBody', close)
     
-    def SubroutineBody(self) -> None:
-        pass
+    def VarDec(self, close= False) -> None:
+        self.writeNonTerminal('varDec', close)
     
-    def VarDec(self) -> None:
-        pass
-    
-    def Statements(self) -> None:
-        pass
+    def Statements(self, close= False) -> None:
+        self.writeNonTerminal('statements', close)
 
-    def StatementsTypes(self, keyWord) -> None:
+    def StatementsTypes(self, keyWord, close= False) -> None:
         assert keyWord in ['let', 'do', 'if', 'while', 'return']
-        pass
+        self.writeNonTerminal(keyWord + 'Statement', close)
     
-    def ExpressionList(self) -> None:
-        pass
+    def ExpressionList(self, close= False) -> None:
+        self.writeNonTerminal('expressionList', close)
     
-    def Expression(self) -> None:
-        pass
+    def Expression(self, close= False) -> None:
+        self.writeNonTerminal('expression', close)
     
-    def Term(self) -> None:
-        pass
+    def Term(self, close= False) -> None:
+        self.writeNonTerminal('term', close)

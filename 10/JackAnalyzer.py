@@ -21,10 +21,9 @@ class JackAnalyzer:
             tokenizer = JackTokenizer(file)
             compiler = CompilationEngine(destfile)
             compiler.write('<tokens>\n')
-            indentC = 0
             while tokenizer.hasMoreTokens():
                 token = tokenizer.advance()
-                compiler.writeTokenXml(token, indentC)
+                compiler.writeTokenXml(token)
             compiler.write('</tokens>\n')
         except IOError as err:
             print('file IO error')
