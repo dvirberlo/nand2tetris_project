@@ -1,3 +1,4 @@
+# this is a complete mess
 import os
 import sys
 import math
@@ -101,40 +102,10 @@ class JCompiler:
     def _isFirst(self, token):
         [cls, val] = token
         xml = ''
+        expressionListName = 'expressionList'
         expressionName = 'expression'
         termName = 'term'
-        if self.lastToken[1] == 'return' and val != ';':
-            xml += self._xml(self._xmlIndent(), expressionName, False)
-            self.stack.append({'val': expressionName})
-            xml += self._xmlTree(token, termName, True)
-            xml += self._xml(self._xmlIndent(), termName, True)
-            
-        if val in '=[]' or (val == ';' and self.stack != [] and self.stack[-1]['val'] == expressionName):
-            close = val in '];'
-            if close:
-                self.stack.pop()
-                xml += self._xml(self._xmlIndent(), expressionName, True)
-            else:
-                if cls not in ['identifier', 'keyword']:
-                    xml += self._xmlTree(token, expressionName, False, close)
-                    self.stack.append({'val': expressionName})
-                else:
-                    xml += self._xml(self._xmlIndent(), expressionName, close)
-                    self.stack.append({'val': expressionName})
-                    xml += self._xmlTree(token, termName, False, close)
-                    self.stack.append({'val': termName})
-
         statementsName = 'statements'
-        if val in self.statements and (self.stack == [] or self.stack[-1]['val'] != statementsName):
-            xml += self._xml(self._xmlIndent(), statementsName, False)
-            self.stack.append({'val': statementsName})
-        elif val in self.nonStatements and self.stack != [] and self.stack[-1]['val'] == statementsName:
-            xml += self._xml(self._xmlIndent(), statementsName, True)
-            self.stack.pop()
-        if self.stack != [] and self.stack[-1]['val'] == statementsName and val == '}':
-            self.stack.pop()
-            xml += self._xml(self._xmlIndent(), statementsName, True)
-        return xml
     def _isStatement(self, token):
         [cls, val] = token
         keyWords = [['let'], ['do'], ['if'], ['while'], ['return']]
@@ -205,37 +176,8 @@ class JCompiler:
         expressionListName = 'expressionList'
         expressionName = 'expression'
         termName = 'term'
-        if self.stack != [] and self.stack[-1]['val'] == expressionListName and val not in ',)':
-            # xml += self._xmlTree(token, expressionName, True)
-            xml += self._xml(self._xmlIndent(), expressionName, False)
-            self.stack.append({'val': expressionName})
-        if not wrriten:
-            if val in '()':
-                close = val == ')'
-                if (close and (self.stack[-2]['val'] == expressionListName or self.stack[-1]['val'] == expressionListName)) or (not close and self.lastToken[0] == 'identifier'):
-                    if self.stack[-1]['val'] == expressionName:
-                        self.stack.pop()
-                        xml += self._xml(self._xmlIndent(), expressionName, True)
-                    xml += self._xmlTree(token, expressionListName, False, close)
-                    if close:
-                        if self.stack != [] and self.stack[-1]['val'] == expressionName:
-                            self.stack.pop()
-                        self.stack.pop()
-                    else: self.stack.append({'val': expressionListName})
-                else:
-                    xml += self._xmlTree(token, expressionName, False, close)
-                    if not close: self.stack.append({'val': expressionName})
-                    else: self.stack.pop()
-            elif self.stack != [] and self.stack[-1]['val'] == expressionName and cls != 'symbol':
-                xml += self._xmlTree(token, termName, True)
-                xml += self._xml(self._xmlIndent(), termName, True)
-            elif len(self.stack) > 2 and self.stack[-2]['val'] == expressionListName and val == ',':
-                xml += self._xmlTree(token, expressionName, False, True)
-                self.stack.pop()
-                xml += self._xml(self._xmlIndent(), expressionName, False)
-                self.stack.append({'val': expressionName})
-            else:
-                xml += self._xml(self._xmlIndent(), token)
+        statementsName = 'statements'
+        
         return xml
 
     def _xmlIndent(self):
@@ -266,7 +208,7 @@ class JCompiler:
         else:
             return indentC * indentS + '<'+obj[0]+'> ' +self._xmlLang(obj[1]) +' </'+obj[0]+'>\n'
     def _xmlLang(self, str):
-        return str.replace('<', '&lt;').replace('>', '&gt;')
+        return str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\'', '&apos;').replace('"', '&quot;')
 
 
 
