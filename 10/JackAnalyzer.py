@@ -26,28 +26,110 @@ class JackAnalyzer:
             print('file IO error')
             raise err
     
-    def analyzeTokensUntil(self, func= lambda: False) -> None:
-        while not func() and self.tokenizer.hasMoreTokens():
+    def analyzeTokensUntil(self, quit= lambda: False) -> None:
+        while not quit() and self.tokenizer.hasMoreTokens():
             token = self.tokenizer.advance()
             if token.keyWord == 'class':
                 self.analyzeClass()
+            elif token.keyWord in ['static', 'field']:
+                self.analyzeClassVarDec()
+            # elif token.keyWord in ['constructor', 'function', 'method']:
+            #     self.analyzeSubroutineDec()
+            elif token.keyWord == 'var':
+                self.analyzeVarDec()
+            # elif token.keyWord in ['let', 'do', 'if', 'while', 'return']:
+            #     self.analyzeStatementsTypes()
             # TODO ...
             else:
                 print('unsupported token. string: ' + token.string)
                 self.compiler.writeTokenXml(self.tokenizer.getToken())
     
+    # program structure:
     def analyzeClass(self) -> None:
-        self.compiler.writeNonTerminal('class', False, 1)
-        self.compiler.writeTokenXml(self.tokenizer.getToken())
+        # 'class'
+        self.tokenizer.getToken()
         # className
-        self.compiler.writeTokenXml(self.tokenizer.advance())
+        className = self.tokenizer.advance().string
         # {
-        self.compiler.writeTokenXml(self.tokenizer.advance())
+        self.tokenizer.advance()
+        self.compiler.Class(className, False)
         # ...
+        # TODO ? is it by order (= *classVarDev and then *subroutineDec) or not (= right now) ?
         self.analyzeTokensUntil(lambda: not self.tokenizer.peekNextToken().string != '}')
         # }
-        self.compiler.writeTokenXml(self.tokenizer.advance(), -1)
-        self.compiler.writeNonTerminal('class', True)
+        self.tokenizer.advance()
+        self.compiler.Class(className, True)
+    def analyzeClassVarDec(self) -> None:
+        # in ['static', 'field']
+        keyword = self.tokenizer.getToken().string
+        # type
+        varType = self.tokenizer.advance().string
+        # varName + *(, varName)
+        varNames = [self.tokenizer.advance().string]
+        while self.tokenizer.peekNextToken().string != ';':
+            # ,
+            self.tokenizer.advance()
+            # varName
+            varNames.append(self.tokenizer.advance().string)
+        # ;
+        self.tokenizer.advance()
+        self.compiler.classVarDec(keyword, varType, varNames)
+    def analyzeSubroutineDec(self) -> None:
+        # in ['constructor', 'function', 'method']
+        keyword = self.tokenizer.getToken().string
+        # 'void' | type
+        typeName = self.tokenizer.advance().string
+        # subroutineName
+        subroutineName = self.tokenizer.advance().string
+        # '('
+        self.tokenizer.advance()
+        # parameterList
+        parameters = []
+        if self.tokenizer.peekNextToken().string != ')':
+            # parameterType + parameterName
+            parameters.append([self.tokenizer.advance().string, self.tokenizer.advance().string])
+        while self.tokenizer.peekNextToken().string != ')':
+            # ,
+            self.tokenizer.advance()
+            # parameterType + parameterName
+            parameters.append([self.tokenizer.advance().string, self.tokenizer.advance().string])
+        # ')'
+        self.tokenizer.advance()
+        self.compiler.SubroutineDec(keyword, typeName, subroutineName, parameters, False)
+        # {
+        self.tokenizer.advance()
+        self.analyzeTokensUntil(lambda: self.tokenizer.peekNextToken().string != 'var')
+        # statements
+        self.analyzeStatements()
+        # }
+        self.tokenizer.advance()
+        self.compiler.SubroutineDec(keyword, typeName, subroutineName, parameters, True)
+    def analyzeVarDec(self) -> None:
+        # 'var'
+        self.tokenizer.getToken()
+        # type
+        varType = self.tokenizer.advance().string
+        # varName + *(, varName)
+        varNames = [self.tokenizer.advance().string]
+        while self.tokenizer.peekNextToken().string != ';':
+            # ,
+            self.tokenizer.advance()
+            # varName
+            varNames.append(self.tokenizer.advance().string)
+        # ;
+        self.tokenizer.advance()
+        self.compiler.VarDec(varType, varNames)
+    
+    # statements:
+    def analyzeStatements(self) -> None:
+        self.compiler.Statements(False)
+        self.analyzeTokensUntil(lambda: self.tokenizer.peekNextToken().string not in ['let', 'do', 'if', 'while', 'return'])
+        self.compiler.Statements(True)
+    def analyzeStatementsTypes(self) -> None:
+        # TODO
+        pass
+
+    # expressions:
 
 
 

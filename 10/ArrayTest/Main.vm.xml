@@ -8,20 +8,26 @@
   <symbol> ( </symbol>
   <symbol> ) </symbol>
   <symbol> { </symbol>
-  <keyword> var </keyword>
-  <identifier> Array </identifier>
-  <identifier> a </identifier>
-  <symbol> ; </symbol>
-  <keyword> var </keyword>
-  <keyword> int </keyword>
-  <identifier> length </identifier>
-  <symbol> ; </symbol>
-  <keyword> var </keyword>
-  <keyword> int </keyword>
-  <identifier> i </identifier>
-  <symbol> , </symbol>
-  <identifier> sum </identifier>
-  <symbol> ; </symbol>
+  <varDec>
+    <keyword> var </keyword>
+    <identifier> Array </identifier>
+    <identifier> a </identifier>
+    <symbol> ; </symbol>
+  </varDec>
+  <varDec>
+    <keyword> var </keyword>
+    <keyword> int </keyword>
+    <identifier> length </identifier>
+    <symbol> ; </symbol>
+  </varDec>
+  <varDec>
+    <keyword> var </keyword>
+    <keyword> int </keyword>
+    <identifier> i </identifier>
+    <symbol> , </symbol>
+    <identifier> sum </identifier>
+    <symbol> ; </symbol>
+  </varDec>
   <keyword> let </keyword>
   <identifier> length </identifier>
   <symbol> = </symbol>

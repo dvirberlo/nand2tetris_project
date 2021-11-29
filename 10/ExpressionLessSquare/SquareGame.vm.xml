@@ -2,14 +2,18 @@
   <keyword> class </keyword>
   <identifier> SquareGame </identifier>
   <symbol> { </symbol>
-  <keyword> field </keyword>
-  <identifier> Square </identifier>
-  <identifier> square </identifier>
-  <symbol> ; </symbol>
-  <keyword> field </keyword>
-  <keyword> int </keyword>
-  <identifier> direction </identifier>
-  <symbol> ; </symbol>
+  <classVarDec>
+    <keyword> field </keyword>
+    <identifier> Square </identifier>
+    <identifier> square </identifier>
+    <symbol> ; </symbol>
+  </classVarDec>
+  <classVarDec>
+    <keyword> field </keyword>
+    <keyword> int </keyword>
+    <identifier> direction </identifier>
+    <symbol> ; </symbol>
+  </classVarDec>
   <keyword> constructor </keyword>
   <identifier> SquareGame </identifier>
   <identifier> new </identifier>
@@ -130,14 +134,18 @@
 <symbol> ( </symbol>
 <symbol> ) </symbol>
 <symbol> { </symbol>
-<keyword> var </keyword>
-<keyword> char </keyword>
-<identifier> key </identifier>
-<symbol> ; </symbol>
-<keyword> var </keyword>
-<keyword> boolean </keyword>
-<identifier> exit </identifier>
-<symbol> ; </symbol>
+<varDec>
+  <keyword> var </keyword>
+  <keyword> char </keyword>
+  <identifier> key </identifier>
+  <symbol> ; </symbol>
+</varDec>
+<varDec>
+  <keyword> var </keyword>
+  <keyword> boolean </keyword>
+  <identifier> exit </identifier>
+  <symbol> ; </symbol>
+</varDec>
 <keyword> let </keyword>
 <identifier> exit </identifier>
 <symbol> = </symbol>
