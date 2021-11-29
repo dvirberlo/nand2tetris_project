@@ -69,14 +69,14 @@ class JackTokenizer:
         if writeChange: self.line = self.line[sCrop: ]
         return token
     
-    def _firstSymbolIndex(self, string):
+    def _firstSymbolIndex(self, string) -> int:
         index = len(string)
         for symbol in self.symbols:
             if symbol in string and string.index(symbol) < index:
                 index = string.index(symbol)
         return index
     
-    def _removeMeaningless(self, line):
+    def _removeMeaningless(self, line) -> None:
         multyLineS = '/*'
         multyLineE = '*/'
         singleLineS = '//'
