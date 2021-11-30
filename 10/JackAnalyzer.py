@@ -4,6 +4,7 @@ from CompilationEngine import CompilationEngine
 import os
 import sys
 
+# TODO: check about statements and expressions (future look into vm code...)
 class JackAnalyzer:
     ext = '.jack'
     # extP = '.vm'
@@ -37,8 +38,8 @@ class JackAnalyzer:
             #     self.analyzeSubroutineDec()
             elif token.keyWord == 'var':
                 self.analyzeVarDec()
-            # elif token.keyWord in ['let', 'do', 'if', 'while', 'return']:
-            #     self.analyzeStatementsTypes()
+            # elif token.keyWord in ['let', 'if', 'while', 'do', 'return']:
+            #     self.analyzeStatementsTypes(token.keyWord)
             # TODO ...
             else:
                 print('unsupported token. string: ' + token.string)
@@ -123,10 +124,50 @@ class JackAnalyzer:
     # statements:
     def analyzeStatements(self) -> None:
         self.compiler.Statements(False)
-        self.analyzeTokensUntil(lambda: self.tokenizer.peekNextToken().string not in ['let', 'do', 'if', 'while', 'return'])
+        self.analyzeTokensUntil(lambda: self.tokenizer.peekNextToken().string not in ['let', 'if', 'while', 'do', 'return'])
         self.compiler.Statements(True)
-    def analyzeStatementsTypes(self) -> None:
-        # TODO
+    def analyzeLetStatement(self) -> None:
+        # 'let'
+        # varName
+        # ? [
+            # expression
+            # ]
+        # =
+        # expression
+        # ;
+        pass
+    def analyzeIfStatement(self) -> None:
+        # 'if'
+        # (
+        # expression
+        # )
+        # {
+        # statements
+        # }
+        # ? 'else'
+            # {
+            # statememts
+            # }
+        pass
+    def analyzeWhileStatement(self) -> None:
+        # 'while'
+        # (
+        # expression
+        # )
+        # {
+        # statements
+        # }
+        pass
+    def analyzeDoStatement(self) -> None:
+        # 'do'
+        # ... (subroutineCall)
+        # ;
+        pass
+    def analyzeReturnStatement(self) -> None:
+        # 'return'
+        # ? ! ';'
+            # expression
+        # ;
         pass
 
     # expressions:

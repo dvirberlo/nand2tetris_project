@@ -112,19 +112,25 @@ class CompilationEngine:
         else:
             self.indentD()
             self.writeNonTerminal('statements', True)
-
-    def StatementsTypes(self, keyWord, close= False) -> None:
-        assert keyWord in ['let', 'do', 'if', 'while', 'return'], 'keyWord should be on of: let, do, if, while, return'
-        # TODO
+    
+    def LetStatement(self, varName) -> None:
+        pass
+    def IfStatement(self) -> None:
+        pass
+    def WhileStatement(self) -> None:
+        pass
+    def DoStatement(self) -> None:
+        pass
+    def ReturnStatement(self) -> None:
         pass
     
-    def ExpressionList(self, close= False) -> None:
+    def ExpressionList(self, expressions) -> None:
         pass
     
-    def Expression(self, close= False) -> None:
+    def Expression(self, opTerms) -> None:
         pass
     
-    def Term(self, close= False) -> None:
+    def Term(self, symbol) -> None:
         pass
     
     # compile small functions:
