@@ -4,7 +4,6 @@ from CompilationEngine import CompilationEngine
 import os
 import sys
 
-# TODO: check about statements and expressions (future look into vm code...)
 class JackAnalyzer:
     ext = '.jack'
     # extP = '.vm'
@@ -128,50 +127,175 @@ class JackAnalyzer:
         self.compiler.Statements(True)
     def analyzeLetStatement(self) -> None:
         # 'let'
+        self.tokenizer.advance()
         # varName
+        varName = self.tokenizer.advance()
+        arrIndex = self.tokenizer.peekNextToken().string == '['
+        arrExpression = None
         # ? [
+        if arrIndex:
+            self.tokenizer.advance()
             # expression
+            arrExpression = self.analyzeExpression()
             # ]
+            self.tokenizer.advance()
         # =
+        self.tokenizer.advance()
         # expression
+        expression = self.analyzeExpression()
         # ;
-        pass
+        self.tokenizer.advance()
+        self.compiler.LetStatement(varName, arrIndex, arrExpression, expression)
     def analyzeIfStatement(self) -> None:
+        self.compiler.IfStatement(False)
         # 'if'
+        self.tokenizer.advance()
         # (
+        self.tokenizer.advance()
         # expression
+        self.analyzeExpression()
         # )
+        self.tokenizer.advance()
         # {
+        self.tokenizer.advance()
         # statements
+        self.analyzeStatements()
         # }
+        self.tokenizer.advance()
         # ? 'else'
+        if self.tokenizer.peekNextToken().string == 'else':
             # {
+            self.tokenizer.advance()
             # statememts
+            self.analyzeStatements()
             # }
-        pass
+            self.tokenizer.advance()
+        self.compiler.IfStatement(True)
     def analyzeWhileStatement(self) -> None:
+        self.compiler.WhileStatement(False)
         # 'while'
+        self.tokenizer.advance()
         # (
+        self.tokenizer.advance()
         # expression
+        self.analyzeExpression()
         # )
+        self.tokenizer.advance()
         # {
+        self.tokenizer.advance()
         # statements
+        self.analyzeStatements()
         # }
-        pass
+        self.tokenizer.advance()
+        self.compiler.WhileStatement(True)
     def analyzeDoStatement(self) -> None:
+        self.compiler.DoStatement(False)
         # 'do'
+        self.tokenizer.advance()
         # ... (subroutineCall)
+        self.analyzeTokensUntil(lambda: self.tokenizer.peekNextToken().string != ';')
         # ;
-        pass
+        self.tokenizer.advance()
+        self.compiler.DoStatement(True)
     def analyzeReturnStatement(self) -> None:
+        self.compiler.ReturnStatement(False)
         # 'return'
+        self.tokenizer.advance()
         # ? ! ';'
+        if self.tokenizer.peekNextToken().string != ';':
             # expression
+            self.analyzeExpression()
         # ;
-        pass
+        self.tokenizer.advance()
+        self.compiler.ReturnStatement(True)
 
     # expressions:
+    def analyzeExpression(self) -> None:
+        # TODO
+        pass
+class Class:
+    def __init__(self, className, classVarDecs, subroutineDecs) -> None:
+        self.className = className
+        self.classVarDecs = classVarDecs
+        self.subroutineDecs = subroutineDecs
+class ClassVarDec:
+    def __init__(self, keyWord, varType, varNames) -> None:
+        self.keyWord = keyWord
+        self.varType = varType
+        self.varNames = varNames
+class SubroutineDec:
+    def __init__(self, keyWord, routineType, routineName, parameterList, varDecs, statments) -> None:
+        self.keyWord = keyWord
+        self.routineType = routineType
+        self.routineName = routineName
+        self.parameterList = parameterList
+        self.varDecs = varDecs
+        self.statments = statments
+class ParameterList:
+    def __init__(self, varTypeNames) -> None:
+        self.varTypeNames = varTypeNames
+class VarDec:
+    def __init__(self, varType, varNames) -> None:
+        self.varType = varType
+        self.varNames = varNames
 
+class Statments:
+    def __init__(self, statments) -> None:
+        self.statments = statments
+class LetStatment:
+    def __init__(self, varName, arrIndex, arrExpression, expression) -> None:
+        assert type(expression) == Expression
+        self.varName = varName
+        self.arrIndex = arrIndex
+        self.arrExpression = arrExpression
+        self.expression = expression
+class IfStatment:
+    def __init__(self, expression, statments, isElse, elseStatments) -> None:
+        assert type(expression) == Expression and type(statments) == Statments
+        self.expression = expression
+        self.statments = statments
+        self.isElse = isElse
+        self.elseStatments = elseStatments
+class WhileStatment:
+    def __init__(self, expression, statments) -> None:
+        assert type(expression) == Expression and type(statments) == Statments
+        self.expression = expression
+        self.statments = statments
+class DoStatment:
+    def __init__(self, subroutineCall) -> None:
+        self.subroutineCall = subroutineCall
+class ReturnStatment:
+    def __init__(self, isExpression, expression) -> None:
+        self.isExpression = isExpression
+        self.expression = expression
+
+class Expression:
+    def __init__(self, opTerms) -> None:
+        self.opTerms = opTerms
+class Term:
+    def __init__(self, name, kind, bracket, expression, subroutineCall, unaryOp) -> None:
+        assert kind in [] or (bracket in [] and type(expression) == Expression) or (type(subroutineCall) == SubroutineCall) or (type(unaryOp) == UnaryOp)
+        self.name = name
+        self.kind = kind
+        self.bracket = bracket
+        self.expression = expression
+        self.subroutineCall = subroutineCall
+        self.unaryOp = unaryOp
+class SubroutineCall:
+    def __init__(self, name, isDot, subName, parameterList) -> None:
+        assert type(parameterList) == ParameterList
+        self.name = name
+        self.isDot = isDot
+        self.subName = subName
+        self.parameterList = parameterList
+class Op:
+    def __init__(self, string) -> None:
+        assert string in '+-*/&|<>='
+        self.string = string
+class UnaryOp:
+    def __init__(self, string) -> None:
+        assert string in '-~'
+        self.string = string
 
 
 

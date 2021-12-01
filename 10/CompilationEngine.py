@@ -113,15 +113,25 @@ class CompilationEngine:
             self.indentD()
             self.writeNonTerminal('statements', True)
     
-    def LetStatement(self, varName) -> None:
+    def LetStatement(self, varName, arrIndex, arrExpression, expression) -> None:
+        # letStatement
+        self.writeNonTerminal('letStatement', False, 1)
+        # 'let'
+        self.writeTokenXml(Token('let', Token.kinds['keyword'], Token.keyWords['let']))
+        # varName
+        self.writeTokenXml(Token(varName, Token.kinds['identifier']))
+        # ... (?[expression] = expression)
+        # ;
+        self.writeTokenXml(Token(';', Token.kinds['symbol']), -1)
+        # /letStatement
+        self.writeNonTerminal('letStatement', True)
+    def IfStatement(self, close= False) -> None:
         pass
-    def IfStatement(self) -> None:
+    def WhileStatement(self, close= False) -> None:
         pass
-    def WhileStatement(self) -> None:
+    def DoStatement(self, close= False) -> None:
         pass
-    def DoStatement(self) -> None:
-        pass
-    def ReturnStatement(self) -> None:
+    def ReturnStatement(self, close= False) -> None:
         pass
     
     def ExpressionList(self, expressions) -> None:
