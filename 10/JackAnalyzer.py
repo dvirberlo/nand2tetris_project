@@ -1,7 +1,6 @@
 from JackTokenizer import JackTokenizer
 from JackTokenizer import Token
-# from CompilationEngine import CompilationEngine
-from CE import Class
+from CE import CompilationEngine
 import os
 import sys
 
@@ -13,19 +12,16 @@ class JackAnalyzer:
     name = 'JackAnalyzer'
     
     def __init__(self) -> None:
-        self.tokenizer = JackTokenizer(None)
-        # self.compiler = CompilationEngine(None)
+        self.tokenizer = JackTokenizer(None) # just for vscode to know it's a JackTokenizer TODO: remove
+        self.compiler = CompilationEngine(None, self.tokenizer) # just for vscode to know it's a CompilationEngine TODO: remove
     
     def parse(self, filepath, destPath) -> None:
         try:
             file = open(filepath)
             destfile = open(destPath, 'w')
             self.tokenizer = JackTokenizer(file)
-            # self.compiler = CompilationEngine(destfile)
-            while self.tokenizer.hasMoreTokens():
-                if self.tokenizer.peekNextToken().string != 'class':
-                    return print('ERROR!!!!! non-class root token ['+self.tokenizer.getToken().string+'->'+self.tokenizer.peekNextToken().string+']')
-                Class(self.tokenizer)
+            self.compiler = CompilationEngine(destfile, self.tokenizer)
+            self.compiler.start()
         except IOError as err:
             print('file IO error')
             raise err
