@@ -132,37 +132,96 @@ class VarDec:
 class Statments:
     triggers = ['let', 'if', 'while', 'do', 'return']
     def __init__(self, tokenizer) -> None:
-        pass
+        # TODO: make it simpler to read (easy)
+        options = [LetStatment, IfStatment, WhileStatment, DoStatment, ReturnStatment]
+        self.statements = []
+        while tokenizer.peekNextToken().string in self.triggers:
+            statement = ( options[ self.triggers.index(tokenizer.peekNextToken().string) ] )()
+            self.statements.append(statement)
 class LetStatment:
-    def __init__(self, varName, arrIndex, arrExpression, expression) -> None:
-        assert type(expression) == Expression
-        self.varName = varName
-        self.arrIndex = arrIndex
-        self.arrExpression = arrExpression
-        self.expression = expression
+    def __init__(self, tokenizer) -> None:
+        # 'let'
+        tokenizer.advance()
+        # varName
+        self.varName = tokenizer.advance().string
+        self.arrExpression = None
+        # ? [
+        if tokenizer.peekNextToken().string == '[':
+            tokenizer.advance()
+            # expression
+            self.arrExpression = Expression(tokenizer)
+            # ]
+            tokenizer.advance()
+        # =
+        tokenizer.advance()
+        # expression
+        self.expression = Expression(tokenizer)
+        # ;
+        tokenizer.advance()
 class IfStatment:
-    def __init__(self, expression, statments, isElse, elseStatments) -> None:
-        assert type(expression) == Expression and type(statments) == Statments
-        self.expression = expression
-        self.statments = statments
-        self.isElse = isElse
-        self.elseStatments = elseStatments
+    def __init__(self, tokenizer) -> None:
+        # 'if'
+        tokenizer.advance()
+        # (
+        tokenizer.advance()
+        # expression
+        self.expression = Expression(tokenizer)
+        # )
+        tokenizer.advance()
+        # {
+        tokenizer.advance()
+        # statements
+        self.ifStatements = Statments(tokenizer)
+        # }
+        tokenizer.advance()
+        # ? 'else'
+        self.elseStatements = None
+        if tokenizer.peekNextToken().string == 'else':
+            # {
+            tokenizer.advance()
+            # statememts
+            self.elseStatements = Statments(tokenizer)
+            # }
+            tokenizer.advance()
 class WhileStatment:
-    def __init__(self, expression, statments) -> None:
-        assert type(expression) == Expression and type(statments) == Statments
-        self.expression = expression
-        self.statments = statments
+    def __init__(self, tokenizer) -> None:
+        # 'while'
+        tokenizer.advance()
+        # (
+        tokenizer.advance()
+        # expression
+        self.expression = Expression(tokenizer)
+        # )
+        tokenizer.advance()
+        # {
+        tokenizer.advance()
+        # statements
+        self.statements = Statments(tokenizer)
+        # }
+        tokenizer.advance()
 class DoStatment:
-    def __init__(self, subroutineCall) -> None:
-        self.subroutineCall = subroutineCall
+    def __init__(self, tokenizer) -> None:
+        # 'do'
+        tokenizer.advance()
+        # ... (subroutineCall)
+        self.subroutineCall = SubroutineCall(tokenizer)
+        # ;
+        tokenizer.advance()
 class ReturnStatment:
-    def __init__(self, isExpression, expression) -> None:
-        self.isExpression = isExpression
-        self.expression = expression
+    def __init__(self, tokenizer) -> None:
+        # 'return'
+        tokenizer.advance()
+        # ? ! ';'
+        self.expression = None
+        if tokenizer.peekNextToken().string != ';':
+            # expression
+            self.expression = Expression(tokenizer)
+        # ;
+        tokenizer.advance()
 
 class Expression:
-    def __init__(self, opTerms) -> None:
-        self.opTerms = opTerms
+    def __init__(self, tokenizer) -> None:
+        pass
 class Term:
     def __init__(self, name, kind, bracket, expression, subroutineCall, unaryOp) -> None:
         assert kind in [] or (bracket in [] and type(expression) == Expression) or (type(subroutineCall) == SubroutineCall) or (type(unaryOp) == UnaryOp)
@@ -173,12 +232,8 @@ class Term:
         self.subroutineCall = subroutineCall
         self.unaryOp = unaryOp
 class SubroutineCall:
-    def __init__(self, name, isDot, subName, parameterList) -> None:
-        assert type(parameterList) == ParameterList
-        self.name = name
-        self.isDot = isDot
-        self.subName = subName
-        self.parameterList = parameterList
+    def __init__(self, tokenizer) -> None:
+        pass
 # expression list?
 class Op:
     def __init__(self, string) -> None:
