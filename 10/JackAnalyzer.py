@@ -7,32 +7,27 @@ import sys
 class JackAnalyzer:
     ext = '.jack'
     # extP = '.vm'
-    extP = 'T.vm.xml'
-    version = '0.1'
+    extP = '.vm3.xml'
+    version = '0.3'
     name = 'JackAnalyzer'
     
     def __init__(self) -> None:
-        pass
+        self.tokenizer = JackTokenizer(None) # just for vscode to know it's a JackTokenizer TODO: remove
+        self.compiler = CompilationEngine(None, self.tokenizer) # just for vscode to know it's a CompilationEngine TODO: remove
     
-    def compile(self, filepath, destPath) -> None:
+    def parse(self, filepath, destPath) -> None:
         try:
             file = open(filepath)
             destfile = open(destPath, 'w')
-            tokenizer = JackTokenizer(file)
-            compiler = CompilationEngine(destfile)
-            compiler.write('<tokens>\n')
-            indentC = 0
-            while tokenizer.hasMoreTokens():
-                token = tokenizer.advance()
-                compiler.writeTokenXml(token, indentC)
-            compiler.write('</tokens>\n')
+            self.tokenizer = JackTokenizer(file)
+            self.compiler = CompilationEngine(destfile, self.tokenizer)
+            self.compiler.start()
         except IOError as err:
             print('file IO error')
             raise err
 
 
-
-def main(argv):
+def main(argv) -> None:
     trClass = JackAnalyzer
     help = 'Usage:\n' + '  python3 ' + trClass.name + '.py [ ...files| ...dirs] [ -r| --recursive]'
     version = trClass.name + ' v' + trClass.version + ' for ' + trClass.ext +' files (nand2tetris.org)\n' + 'written by @dvirberlo'
@@ -66,9 +61,9 @@ def main(argv):
                         for filename in extFilenames:
                             filePath = os.path.join(dirPath, filename)
                             singleParse(trClass, filePath)
-def singleParse(trClass, filepath):
+def singleParse(trClass, filepath) -> None:
     destPath = filepath.replace(trClass.ext, trClass.extP)
     print(trClass.name + ' single-mode parse: ' + filepath + ' started... ', end='', flush=True)
-    trClass().compile(filepath, destPath)
+    trClass().parse(filepath, destPath)
     print('done')
 if __name__ == '__main__': main(sys.argv)
