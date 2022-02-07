@@ -1,4 +1,3 @@
-from sre_parse import Tokenizer
 from xmlrpc.client import Boolean
 from JackTokenizer import Token
 from JackTokenizer import JackTokenizer
@@ -32,15 +31,15 @@ class CompilationEngine:
     def _xmlLang(self, string) -> str:
         assert type(string) == str, 'string parameter should be str'
         return string.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\'', '&apos;').replace('"', '&quot;')
-    
+
 
 # TODO: think if for example self.classVarDecs(@48) is required
 class Class:
     triggers = ['class']
     def __init__(self, tokenizer) -> None:
-        assert type(tokenizer) == Tokenizer
+        assert type(tokenizer) == JackTokenizer
         # 'class'
-        tokenizer.getToken()
+        tokenizer.advance()
         # className
         self.className = tokenizer.advance().string
         # {
@@ -48,18 +47,18 @@ class Class:
         # TODO ? is it by order (= *classVarDec and then *subroutineDec) or not (like right now right now) ?
         self.classVarDecs = []
         while tokenizer.peekNextToken().string in ClassVarDec.triggers:
-            self.classVarDecs.append(ClassVarDec())
+            self.classVarDecs.append(ClassVarDec(tokenizer))
         
         self.subroutineDecs = []
-        while tokenizer.peekNextToken().string in ClassVarDec.triggers:
-            self.subroutineDecs.append(SubroutineDec())
+        while tokenizer.peekNextToken().string in SubroutineDec.triggers:
+            self.subroutineDecs.append(SubroutineDec(tokenizer))
         # }
         tokenizer.advance()
 class ClassVarDec:
     triggers = ['static', 'field']
     def __init__(self, tokenizer) -> None:
         # in ['static', 'field']
-        self.keyword = tokenizer.getToken().string
+        self.keyword = tokenizer.advance().string
         # type
         self.varType = tokenizer.advance().string
         # varName + *(, varName)
@@ -75,7 +74,7 @@ class SubroutineDec:
     triggers = ['constructor', 'function', 'method']
     def __init__(self, tokenizer) -> None:
         # in ['constructor', 'function', 'method']
-        self.keyword = tokenizer.getToken().string
+        self.keyword = tokenizer.advance().string
         # 'void' | type
         self.typeName = tokenizer.advance().string
         # subroutineName
@@ -108,7 +107,7 @@ class SubRoutineBody:
         # varDecs
         self.varDecs = []
         while tokenizer.peekNextToken().string in VarDec.triggers:
-            self.varDecs.append(VarDec())
+            self.varDecs.append(VarDec(tokenizer))
         # statements
         self.statements = Statments(tokenizer)
         # }
@@ -137,7 +136,8 @@ class Statments:
         options = [LetStatment, IfStatment, WhileStatment, DoStatment, ReturnStatment]
         self.statements = []
         while tokenizer.peekNextToken().string in self.triggers:
-            statement = ( options[ self.triggers.index(tokenizer.peekNextToken().string) ] )()
+            # print(tokenizer.peekNextToken().string)
+            statement = ( options[ self.triggers.index(tokenizer.peekNextToken().string) ] )(tokenizer)
             self.statements.append(statement)
 class LetStatment:
     def __init__(self, tokenizer) -> None:
@@ -175,9 +175,11 @@ class IfStatment:
         self.ifStatements = Statments(tokenizer)
         # }
         tokenizer.advance()
-        # ? 'else'
+        # ?
         self.elseStatements = None
         if tokenizer.peekNextToken().string == 'else':
+            # 'else'
+            tokenizer.advance()
             # {
             tokenizer.advance()
             # statememts
@@ -231,14 +233,16 @@ class Term:
         # uniquely in this method, the tokenizer eats the token imediately. to allow to simply get the token byond this
         # ( in future, might want to make new Tokenizer.peekNextNextToken() )
         token = tokenizer.advance()
+        self.mainVal, self.expression, self.subroutineCall, self.unaryOp = (None,) * 4
+
         isIntergerConstant = (token.kind == Token.kinds['integerConstant'])
         isStringConstant = (token.kind == Token.kinds['stringConstant'])
         isKeywordConstant = (token.string in KeywordConstant.triggers)
-        isSubroutineCall = (tokenizer.peekNextToken().string in SubroutineCall.nextTriggers)
+        isSubroutineCall = (token.kind == Token.kinds['identifier'] and tokenizer.peekNextToken().string in SubroutineCall.nextTriggers)
         isVarName = (token.kind == Token.kinds['identifier'] and not isSubroutineCall)
         isAnotherExpression = (token.string == '(')
         isUnaryOp = (token.string in UnaryOp.triggers)
-        self.mainVal, self.expression, self.subroutineCall, self.unatyOp = (None,) * 4
+        
         if isIntergerConstant or isStringConstant or isKeywordConstant:
             self.mainVal = tokenizer.getToken()
         elif isVarName:
@@ -258,32 +262,36 @@ class Term:
             # )
             tokenizer.advance()
         elif isUnaryOp:
-            self.unatyOp = UnaryOp(tokenizer, token)
-            self.mainVal = tokenizer.advance()
+            self.unaryOp = UnaryOp(tokenizer, token)
+            self.expression = Expression(tokenizer)
         else: print("./10/CE.py @Term: no match found")
 class SubroutineCall:
     nextTriggers = ["(", "."]
-    def __init__(self, tokenizer, currentToken) -> None:
+    def __init__(self, tokenizer, currentToken=None) -> None:
         # className | varName
-        self.mainName = tokenizer.getToken()
+        if currentToken == None: self.mainName = tokenizer.advance().string
+        else: self.mainName = tokenizer.getToken().string
         # ?
         self.subroutineName = None
-        if tokenizer.peekNextToken().stinrg == '.':
+        if tokenizer.peekNextToken().string == '.':
             # .
             tokenizer.advance()
             # subroutineName
-            self.subroutineName = tokenizer.advance()
+            self.subroutineName = tokenizer.advance().string
         # (
         tokenizer.advance()
         # expressionList
         self.expressionList = ExpressionList(tokenizer)
         # )
         tokenizer.advance()
+
 class ExpressionList:
     def __init__(self, tokenizer) -> None:
-        self.expressions = [Expression(tokenizer)]
-        # ?
-        while tokenizer.peekNextToken().stinrg == ',':
+        self.expressions = []
+        # expression
+        if tokenizer.peekNextToken().string != ')':
+            self.expressions.append(Expression(tokenizer))
+        while tokenizer.peekNextToken().string == ',':
             # ,
             tokenizer.advance()
             # expression
