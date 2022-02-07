@@ -1,6 +1,6 @@
 from JackTokenizer import JackTokenizer
 from JackTokenizer import Token
-from CE import CompilationEngine
+from CompilationEngine import CompilationEngine
 import os
 import sys
 
