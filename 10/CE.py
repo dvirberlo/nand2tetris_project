@@ -1,4 +1,5 @@
 from sre_parse import Tokenizer
+from xmlrpc.client import Boolean
 from JackTokenizer import Token
 from JackTokenizer import JackTokenizer
 
@@ -218,28 +219,84 @@ class ReturnStatment:
             self.expression = Expression(tokenizer)
         # ;
         tokenizer.advance()
-
 class Expression:
     def __init__(self, tokenizer) -> None:
-        pass
+        self.terms = [Term(tokenizer)]
+        self.ops = []
+        while tokenizer.peekNextToken().string in Op.triggers:
+            self.ops.append(Op(tokenizer))
+            self.terms.append(Term(tokenizer))
 class Term:
-    def __init__(self, name, kind, bracket, expression, subroutineCall, unaryOp) -> None:
-        assert kind in [] or (bracket in [] and type(expression) == Expression) or (type(subroutineCall) == SubroutineCall) or (type(unaryOp) == UnaryOp)
-        self.name = name
-        self.kind = kind
-        self.bracket = bracket
-        self.expression = expression
-        self.subroutineCall = subroutineCall
-        self.unaryOp = unaryOp
-class SubroutineCall:
     def __init__(self, tokenizer) -> None:
-        pass
-# expression list?
+        # uniquely in this method, the tokenizer eats the token imediately. to allow to simply get the token byond this
+        # ( in future, might want to make new Tokenizer.peekNextNextToken() )
+        token = tokenizer.advance()
+        isIntergerConstant = (token.kind == Token.kinds['integerConstant'])
+        isStringConstant = (token.kind == Token.kinds['stringConstant'])
+        isKeywordConstant = (token.string in KeywordConstant.triggers)
+        isSubroutineCall = (tokenizer.peekNextToken().string in SubroutineCall.nextTriggers)
+        isVarName = (token.kind == Token.kinds['identifier'] and not isSubroutineCall)
+        isAnotherExpression = (token.string == '(')
+        isUnaryOp = (token.string in UnaryOp.triggers)
+        self.mainVal, self.expression, self.subroutineCall, self.unatyOp = (None,) * 4
+        if isIntergerConstant or isStringConstant or isKeywordConstant:
+            self.mainVal = tokenizer.getToken()
+        elif isVarName:
+            self.mainVal = tokenizer.getToken()
+            if tokenizer.peekNextToken().string == '[':
+                # [
+                tokenizer.advance()
+                self.expression = Expression(tokenizer)
+                # ]
+                tokenizer.advance()
+        elif isSubroutineCall:
+            self.subroutineCall = SubroutineCall(tokenizer, token)
+        elif isAnotherExpression:
+            # (
+            tokenizer.getToken()
+            self.expression = Expression(tokenizer)
+            # )
+            tokenizer.advance()
+        elif isUnaryOp:
+            self.unatyOp = UnaryOp(tokenizer, token)
+            self.mainVal = tokenizer.advance()
+        else: print("./10/CE.py @Term: no match found")
+class SubroutineCall:
+    nextTriggers = ["(", "."]
+    def __init__(self, tokenizer, currentToken) -> None:
+        # className | varName
+        self.mainName = tokenizer.getToken()
+        # ?
+        self.subroutineName = None
+        if tokenizer.peekNextToken().stinrg == '.':
+            # .
+            tokenizer.advance()
+            # subroutineName
+            self.subroutineName = tokenizer.advance()
+        # (
+        tokenizer.advance()
+        # expressionList
+        self.expressionList = ExpressionList(tokenizer)
+        # )
+        tokenizer.advance()
+class ExpressionList:
+    def __init__(self, tokenizer) -> None:
+        self.expressions = [Expression(tokenizer)]
+        # ?
+        while tokenizer.peekNextToken().stinrg == ',':
+            # ,
+            tokenizer.advance()
+            # expression
+            self.expressions.append(Expression(tokenizer))
 class Op:
-    def __init__(self, string) -> None:
-        assert string in '+-*/&|<>='
-        self.string = string
+    triggers = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
+    def __init__(self, tokenizer) -> None:
+        self.op = tokenizer.advance()
 class UnaryOp:
-    def __init__(self, string) -> None:
-        assert string in '-~'
-        self.string = string
+    triggers = ['-', '~']
+    def __init__(self, tokenizer, currentToken) -> None:
+        self.unaryOp = currentToken
+class KeywordConstant:
+    triggers = ['true', 'false', 'null', 'this']
+    def __init__(self, tokenizer, currentToken) -> None:
+        self.keywordConstant = currentToken
