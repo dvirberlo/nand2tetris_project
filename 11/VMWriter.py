@@ -1,5 +1,34 @@
 from JackTokenizer import Token
 
+class SymbolTable:
+    def __init__(self) -> None:
+        self.table = []
+    
+    def definde(self, name, type, kind) -> None:
+        self.table.append({
+            "name": name,
+            "type": type,
+            "kind": kind,
+            "index": self.countByKind(kind),
+        })
+    
+    def countByKind(self, kind) -> int:
+        count = 0
+        for row in self.table:
+            if row["kind"] == kind: count += 1
+        return count
+    
+    def kindOf(self, name) -> str:
+        return self._getNamedRow(name)["kind"]
+    def typeOf(self, name) -> str:
+        return self._getNamedRow(name)["type"]
+    def indexdOf(self, name) -> int:
+        return self._getNamedRow(name)["index"]
+    def _getNamedRow(self, name) -> object:
+        for row in self.table:
+            if row["name"] == name:
+                return row
+
 class XMLWriter:
     indentStr = '  '
 
