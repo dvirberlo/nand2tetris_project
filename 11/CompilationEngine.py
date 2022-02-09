@@ -1,6 +1,7 @@
 from JackTokenizer import Token
 from JackTokenizer import JackTokenizer
 from VMWriter import XMLWriter
+from VMWriter import SymbolTable
 
 class CompilationEngine:
     def __init__(self, file, tokenizer) -> None:
@@ -21,6 +22,8 @@ class Class:
     triggers = ['class']
     def __init__(self, writer, tokenizer) -> None:
         assert type(tokenizer) == JackTokenizer
+        writer.classScope = SymbolTable()
+        
         # 'class'
         writer.writeNonTerminal('class')
         writer.writeTokenXml(tokenizer.advance())
@@ -57,9 +60,14 @@ class ClassVarDec:
         # ;
         writer.writeTokenXml(tokenizer.advance())
         writer.writeNonTerminal('classVarDec', True)
+
+        for name in self.varNames:
+            writer.classScope.definde(name, self.varType, self.keyword)
 class SubroutineDec:
     triggers = ['constructor', 'function', 'method']
     def __init__(self, writer, tokenizer) -> None:
+        writer.subroutineScope = SymbolTable()
+        
         writer.writeNonTerminal('subroutineDec')
         # in ['constructor', 'function', 'method']
         self.keyword = writer.writeTokenXml(tokenizer.advance()).string
@@ -69,6 +77,8 @@ class SubroutineDec:
         self.subroutineName = writer.writeTokenXml(tokenizer.advance()).string
         # parameterList
         self.parameterList = ParameterList(writer, tokenizer)
+        for [type, name] in self.parameterList.parameters:
+            writer.subroutineScope.definde(name, type, 'argument')
         # subroutineBody
         self.subroutineBody = SubRoutineBody(writer, tokenizer)
         writer.writeNonTerminal('subroutineDec', True)
@@ -123,6 +133,9 @@ class VarDec:
         # ;
         writer.writeTokenXml(tokenizer.advance())
         writer.writeNonTerminal('varDec', True)
+
+        for name in self.varNames:
+            writer.subroutineScope.definde(name, self.varType, 'local')
 
 class Statements:
     triggers = ['let', 'if', 'while', 'do', 'return']
