@@ -29,6 +29,30 @@ class SymbolTable:
             if row["name"] == name:
                 return row
 
+class VMWriter:
+    def __init__(self, file) -> None:
+        self.file = file
+    
+    def writePush(self, segment, index) -> None:
+        self.file.write(f'push {segment} {index}\n')
+    def writePop(self, segment, index) -> None:
+        self.file.write(f'pop {segment} {index}\n')
+    def writeArithmetic(self, command) -> None:
+        self.file.write(f'{command}\n')
+    
+    def writeLabel(self, label) -> None:
+        self.file.write(f'label {label}\n')
+    def writeGoto(self, label) -> None:
+        self.file.write(f'goto {label}\n')
+    def writeIfGoto(self, label) -> None:
+        self.file.write(f'if-goto {label}\n')
+    
+    def writeCall(self, name, argsCount) -> None:
+        self.file.write(f'call {name} {argsCount}\n')
+    def writeFunction(self, name, localsCount) -> None:
+        self.file.write(f'function {name} {localsCount}\n')
+
+
 class XMLWriter:
     indentStr = '  '
 
