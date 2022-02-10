@@ -1,0 +1,5 @@
+* linguist-detectable=false
+
+*.hdl linguist-detectable=true
+./05/*.asm linguist-detectable=true
+*.py linguist-detectable=true
