@@ -42,7 +42,7 @@ class VMWriter:
         self.subroutineScope = SymbolTable()
     
     def getByName(self, name) -> object:
-        row = self.classSsubroutineScopecope._getNamedRow(name)
+        row = self.subroutineScope._getNamedRow(name)
         if row == None:
             row = self.classScope._getNamedRow(name)
         return row
