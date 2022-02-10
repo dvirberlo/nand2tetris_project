@@ -1,4 +1,12 @@
-**/** linguist-vendored
+**/*.asm linguist-vendored
+**/*.hack linguist-vendored
+**/*.vm linguist-vendored
+**/*.xml linguist-vendored
+**/*.html linguist-vendored
+**/*.tst linguist-vendored
+**/*.cmp linguist-vendored
+**/*.out linguist-vendored
+**/*.jack linguist-vendored
 
 **/*.hdl linguist-vendored=false
 ./05/**/*.asm linguist-vendored=false
