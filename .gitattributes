@@ -1,5 +1,5 @@
-* linguist-detectable=false
+*/* linguist-vendored=true
 
-*.hdl linguist-detectable=true
-./05/*.asm linguist-detectable=true
-*.py linguist-detectable=true
+*/*.hdl linguist-vendored=false
+./05/*.asm linguist-vendored=false
+*/*.py linguist-vendored=false
