@@ -19,15 +19,19 @@ class SymbolTable:
         return count
     
     def kindOf(self, name) -> str:
-        return self._getNamedRow(name)["kind"]
+        row = self._getNamedRow(name)
+        return row["kind"] if row != None else None
     def typeOf(self, name) -> str:
-        return self._getNamedRow(name)["type"]
+        row = self._getNamedRow(name)
+        return row["type"] if row != None else None
     def indexdOf(self, name) -> int:
-        return self._getNamedRow(name)["index"]
+        row = self._getNamedRow(name)
+        return row["index"] if row != None else None
     def _getNamedRow(self, name) -> object:
         for row in self.table:
             if row["name"] == name:
                 return row
+        return None
 
 class VMWriter:
     def __init__(self, file) -> None:
@@ -36,6 +40,12 @@ class VMWriter:
         self.className = ''
         self.classScope = SymbolTable()
         self.subroutineScope = SymbolTable()
+    
+    def getByName(self, name) -> object:
+        row = self.classSsubroutineScopecope._getNamedRow(name)
+        if row == None:
+            row = self.classScope._getNamedRow(name)
+        return row
     
     def writePush(self, segment, index) -> None:
         self.file.write(f'push {segment} {index}\n')
