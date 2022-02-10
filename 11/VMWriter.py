@@ -40,7 +40,12 @@ class VMWriter:
         self.className = ''
         self.classScope = SymbolTable()
         self.subroutineScope = SymbolTable()
-    
+        self.uniqueCounter = 0
+
+    def getUnique(self):
+        self.uniqueCounter += 1
+        return self.uniqueCounter
+
     def getByName(self, name) -> object:
         row = self.subroutineScope._getNamedRow(name)
         if row == None:
@@ -65,3 +70,5 @@ class VMWriter:
         self.file.write(f'call {name} {argsCount}\n')
     def writeFunction(self, name, localsCount) -> None:
         self.file.write(f'function {name} {localsCount}\n')
+    def writeReturn(self) -> None:
+        self.file.write('return\n')

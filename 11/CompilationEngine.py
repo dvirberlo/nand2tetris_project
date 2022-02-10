@@ -118,7 +118,6 @@ class VarDec:
 class Statements:
     triggers = ['let', 'if', 'while', 'do', 'return']
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('statements')
         # TODO: make it simpler to read (easy)
         options = [LetStatement, IfStatement, WhileStatement, DoStatement, ReturnStatement]
         self.statements = []
@@ -126,99 +125,111 @@ class Statements:
             # print(tokenizer.peekNextToken().string)
             statement = ( options[ self.triggers.index(tokenizer.peekNextToken().string) ] )(writer, tokenizer)
             self.statements.append(statement)
-        writer.writeNonTerminal('statements', True)
 class LetStatement:
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('letStatement')
         # 'let'
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # varName
-        self.varName = writer.writeTokenXml(tokenizer.advance()).string
+        var = writer.getByName(tokenizer.advance().string)
         self.arrExpression = None
         # ? [
         if tokenizer.peekNextToken().string == '[':
-            writer.writeTokenXml(tokenizer.advance())
+            writer.writePush(var["kind"], var["index"])
+            tokenizer.advance()
             # expression
             self.arrExpression = Expression(writer, tokenizer)
             # ]
-            writer.writeTokenXml(tokenizer.advance())
+            tokenizer.advance()
+            writer.writeArithmetic('add')
+            writer.writerPop('pointer', 1)
         # =
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # expression
         self.expression = Expression(writer, tokenizer)
+        if self.arrExpression == None:
+            writer.writePop(var["kind"], var["index"])
+        else:
+            writer.writePop('that', 0)
         # ;
-        writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('letStatement', True)
+        tokenizer.advance()
 class IfStatement:
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('ifStatement')
         # 'if'
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # (
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # expression
-        self.expression = Expression(writer, tokenizer)
+        Expression(writer, tokenizer)
         # )
-        writer.writeTokenXml(tokenizer.advance())
+        elseLabel = f'el{writer.getUnique()}'
+        writer.writeArithmetic('neg')
+        writer.writeIfGoto(elseLabel)
+        tokenizer.advance()
         # {
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # statements
-        self.ifStatements = Statements(writer, tokenizer)
+        Statements(writer, tokenizer)
         # }
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # ?
-        self.elseStatements = None
+        writer.writeLabel(elseLabel)
         if tokenizer.peekNextToken().string == 'else':
             # 'else'
-            writer.writeTokenXml(tokenizer.advance())
+            tokenizer.advance()
             # {
-            writer.writeTokenXml(tokenizer.advance())
+            tokenizer.advance()
             # statememts
-            self.elseStatements = Statements(writer, tokenizer)
+            Statements(writer, tokenizer)
             # }
-            writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('ifStatement', True)
+            tokenizer.advance()
 class WhileStatement:
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('whileStatement')
+        unique = writer.getUnique()
+        doLabel = f'do{unique}'
+        whLabel = f'wh{unique}'
+        writer.writerLabel(doLabel)
         # 'while'
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # (
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # expression
-        self.expression = Expression(writer, tokenizer)
+        Expression(writer, tokenizer)
         # )
-        writer.writeTokenXml(tokenizer.advance())
+        writer.writeArithmetic('neg')
+        writer.writeIfGoto(whLabel)
+        tokenizer.advance()
         # {
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # statements
-        self.statements = Statements(writer, tokenizer)
+        Statements(writer, tokenizer)
         # }
-        writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('whileStatement', True)
+        tokenizer.advance()
+        writer.writeLabel(doLabel)
+        writer.writeLabel(whLabel)
 class DoStatement:
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('doStatement')
         # 'do'
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # ... (subroutineCall)
         self.subroutineCall = SubroutineCall(writer, tokenizer)
         # ;
-        writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('doStatement', True)
+        writer.writerPop('temp', 0)
+        tokenizer.advance()
 class ReturnStatement:
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('returnStatement')
         # 'return'
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # ? ! ';'
         self.expression = None
         if tokenizer.peekNextToken().string != ';':
             # expression
             self.expression = Expression(writer, tokenizer)
+        else:
+            writer.writePush('constant', 0)
+        writer.writeReturn()
         # ;
-        writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('returnStatement', True)
+        tokenizer.advance()
+
 class Expression:
     def __init__(self, writer, tokenizer) -> None:
         writer.writeNonTerminal('expression')
@@ -286,7 +297,6 @@ class SubroutineCall:
         self.expressionList = ExpressionList(writer, tokenizer)
         # )
         writer.writeTokenXml(tokenizer.advance())
-
 class ExpressionList:
     def __init__(self, writer, tokenizer) -> None:
         writer.writeNonTerminal('expressionList')
