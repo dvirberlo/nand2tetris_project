@@ -1,13 +1,13 @@
 # */*.asm linguist-vendored=true - doesn't seem to work...
-*/*.asm linguist-vendored=true
-*/*.hack linguist-vendored=true
-*/*.vm linguist-vendored=true
-*/*.xml linguist-vendored=true
-*/*.html linguist-vendored=true
-*/*.tst linguist-vendored=true
-*/*.cmp linguist-vendored=true
-*/*.out linguist-vendored=true
-*/*.jack linguist-vendored=true
+*/*.asm linguist-vendored
+*/*.hack linguist-vendored
+*/*.vm linguist-vendored
+*/*.xml linguist-vendored
+*/*.html linguist-vendored
+*/*.tst linguist-vendored
+*/*.cmp linguist-vendored
+*/*.out linguist-vendored
+*/*.jack linguist-vendored
 
 */*.hdl linguist-vendored=false
 ./05/*.asm linguist-vendored=false
