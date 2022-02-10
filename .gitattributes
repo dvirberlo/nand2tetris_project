@@ -1,14 +1,5 @@
-# */*.asm linguist-vendored=true - doesn't seem to work...
-*/*.asm linguist-vendored
-*/*.hack linguist-vendored
-*/*.vm linguist-vendored
-*/*.xml linguist-vendored
-*/*.html linguist-vendored
-*/*.tst linguist-vendored
-*/*.cmp linguist-vendored
-*/*.out linguist-vendored
-*/*.jack linguist-vendored
+**/*.asm linguist-vendored
 
-*/*.hdl linguist-vendored=false
-./05/*.asm linguist-vendored=false
-*/*.py linguist-vendored=false
+**/*.hdl linguist-vendored=false
+./05/**/*.asm linguist-vendored=false
+**/*.py linguist-vendored=false
