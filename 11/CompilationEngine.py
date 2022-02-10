@@ -1,6 +1,6 @@
 from JackTokenizer import Token
 from JackTokenizer import JackTokenizer
-from VMWriter import XMLWriter
+from VMWriter import VMWriter
 from VMWriter import SymbolTable
 
 class CompilationEngine:
@@ -8,7 +8,7 @@ class CompilationEngine:
         assert type(tokenizer) is JackTokenizer
         self.tokenizer = JackTokenizer(None) # just for vscode to know it's a JackTokenizer TODO: remove
         self.tokenizer = tokenizer
-        self.writer = XMLWriter(file)
+        self.writer = VMWriter(file)
 
     def start(self):
         while self.tokenizer.hasMoreTokens():
@@ -17,49 +17,41 @@ class CompilationEngine:
             Class(self.writer, self.tokenizer)
 
 
-# TODO: think if for example self.classVarDecs(@48) is required
 class Class:
     triggers = ['class']
     def __init__(self, writer, tokenizer) -> None:
         assert type(tokenizer) == JackTokenizer
         writer.classScope = SymbolTable()
-        
         # 'class'
-        writer.writeNonTerminal('class')
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # className
-        self.className = writer.writeTokenXml(tokenizer.advance()).string
+        writer.className = tokenizer.advance()
         # {
-        writer.writeTokenXml(tokenizer.advance())
-        # TODO ? is it by order (= *classVarDec and then *subroutineDec) or not (like right now right now) ?
-        self.classVarDecs = []
+        tokenizer.advance()
         while tokenizer.peekNextToken().string in ClassVarDec.triggers:
-            self.classVarDecs.append(ClassVarDec(writer, tokenizer))
+            ClassVarDec(writer, tokenizer)
         
-        self.subroutineDecs = []
         while tokenizer.peekNextToken().string in SubroutineDec.triggers:
-            self.subroutineDecs.append(SubroutineDec(writer, tokenizer))
+            SubroutineDec(writer, tokenizer)
         # }
-        writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('class', True)
+        tokenizer.advance()
 class ClassVarDec:
     triggers = ['static', 'field']
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('classVarDec')
         # in ['static', 'field']
-        self.keyword = writer.writeTokenXml(tokenizer.advance()).string
+        kind = tokenizer.advance().string
         # type
-        self.varType = writer.writeTokenXml(tokenizer.advance()).string
+        type = tokenizer.advance().string
         # varName + *(, varName)
-        self.varNames = [writer.writeTokenXml(tokenizer.advance()).string]
+        writer.classScope.define(tokenizer.advance().string, type, kind)
+        self.varNames = [tokenizer.advance().string]
         while tokenizer.peekNextToken().string != ';':
             # ,
-            writer.writeTokenXml(tokenizer.advance())
+            tokenizer.advance()
             # varName
-            self.varNames.append(writer.writeTokenXml(tokenizer.advance()).string)
+            writer.classScope.define(tokenizer.advance().string, type, kind)
         # ;
-        writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('classVarDec', True)
+        tokenizer.advance()
 
         for name in self.varNames:
             writer.classScope.definde(name, self.varType, self.keyword)
@@ -67,75 +59,61 @@ class SubroutineDec:
     triggers = ['constructor', 'function', 'method']
     def __init__(self, writer, tokenizer) -> None:
         writer.subroutineScope = SymbolTable()
-        
-        writer.writeNonTerminal('subroutineDec')
-        # in ['constructor', 'function', 'method']
-        self.keyword = writer.writeTokenXml(tokenizer.advance()).string
+        # in ['constructor', 'function', 'method' => +1 (for 'this')]
+        localsCount = 1 if tokenizer.advance().string == 'method' else 0
         # 'void' | type
-        self.typeName = writer.writeTokenXml(tokenizer.advance()).string
+        tokenizer.advance().string
         # subroutineName
-        self.subroutineName = writer.writeTokenXml(tokenizer.advance()).string
+        name = tokenizer.advance().string
         # parameterList
-        self.parameterList = ParameterList(writer, tokenizer)
-        for [type, name] in self.parameterList.parameters:
+        for [type, name] in ParameterList(writer, tokenizer).parameters:
             writer.subroutineScope.definde(name, type, 'argument')
-        # subroutineBody
-        self.subroutineBody = SubRoutineBody(writer, tokenizer)
-        writer.writeNonTerminal('subroutineDec', True)
+        # subroutineBody:
+        # {
+        tokenizer.advance()
+        # varDecs
+        self.varDecs = []
+        while tokenizer.peekNextToken().string in VarDec.triggers:
+            self.varDecs.append(VarDec(writer, tokenizer))
+            localsCount += 1
+        writer.writeFunction(name, localsCount)
+        
+        # statements
+        self.statements = Statements(writer, tokenizer)
+        # }
+        tokenizer.advance()
 class ParameterList:
     triggers = ['(']
     def __init__(self, writer, tokenizer) -> None:
         self.parameters = []
         # '('
-        writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('parameterList')
+        tokenizer.advance()
         if tokenizer.peekNextToken().string != ')':
             # parameterType + parameterName
-            self.parameters.append([writer.writeTokenXml(tokenizer.advance()).string, writer.writeTokenXml(tokenizer.advance()).string])
+            self.parameters.append([tokenizer.advance().string, tokenizer.advance().string])
         while tokenizer.peekNextToken().string != ')':
             # ,
-            writer.writeTokenXml(tokenizer.advance())
+            tokenizer.advance()
             # parameterType + parameterName
-            self.parameters.append([writer.writeTokenXml(tokenizer.advance()).string, writer.writeTokenXml(tokenizer.advance()).string])
-        writer.writeNonTerminal('parameterList', True)
+            self.parameters.append([tokenizer.advance().string, tokenizer.advance().string])
         # ')'
-        writer.writeTokenXml(tokenizer.advance())
-class SubRoutineBody:
-    triggers = ['{']
-    def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('subroutineBody')
-         # {
-        writer.writeTokenXml(tokenizer.advance())
-        # varDecs
-        self.varDecs = []
-        while tokenizer.peekNextToken().string in VarDec.triggers:
-            self.varDecs.append(VarDec(writer, tokenizer))
-        # statements
-        self.statements = Statements(writer, tokenizer)
-        # }
-        writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('subroutineBody', True)
+        tokenizer.advance()
 class VarDec:
     triggers = ['var']
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('varDec')
         # 'var'
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # type
-        self.varType = writer.writeTokenXml(tokenizer.advance()).string
+        type = tokenizer.advance().string
         # varName + *(, varName)
-        self.varNames = [writer.writeTokenXml(tokenizer.advance()).string]
+        writer.subroutineScope.definde(tokenizer.advance().string, type, 'local')
         while tokenizer.peekNextToken().string != ';':
             # ,
-            writer.writeTokenXml(tokenizer.advance())
+            tokenizer.advance()
             # varName
-            self.varNames.append(writer.writeTokenXml(tokenizer.advance()).string)
+            writer.subroutineScope.definde(tokenizer.advance().string, type, 'local')
         # ;
-        writer.writeTokenXml(tokenizer.advance())
-        writer.writeNonTerminal('varDec', True)
-
-        for name in self.varNames:
-            writer.subroutineScope.definde(name, self.varType, 'local')
+        tokenizer.advance()
 
 class Statements:
     triggers = ['let', 'if', 'while', 'do', 'return']

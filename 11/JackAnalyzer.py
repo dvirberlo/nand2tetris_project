@@ -6,9 +6,8 @@ import sys
 
 class JackAnalyzer:
     ext = '.jack'
-    # extP = '.vm'
-    extP = '.vm3.xml'
-    version = '0.3'
+    extP = '.vm'
+    version = '1.0'
     name = 'JackAnalyzer'
     
     def __init__(self) -> None:
