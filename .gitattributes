@@ -1,4 +1,4 @@
-**/*.asm linguist-vendored
+**/** linguist-vendored
 
 **/*.hdl linguist-vendored=false
 ./05/**/*.asm linguist-vendored=false
