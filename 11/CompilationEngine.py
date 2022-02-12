@@ -141,7 +141,7 @@ class LetStatement:
             # ]
             tokenizer.advance()
             writer.writeArithmetic('add')
-            writer.writerPop('pointer', 1)
+            writer.writePop('temp', 0)
         # =
         tokenizer.advance()
         # expression
@@ -149,6 +149,8 @@ class LetStatement:
         if self.arrExpression == None:
             writer.writePop(var["kind"], var["index"])
         else:
+            writer.writePush('temp', 0)
+            writer.writePop('pointer', 1)
             writer.writePop('that', 0)
         # ;
         tokenizer.advance()
@@ -187,7 +189,7 @@ class WhileStatement:
         unique = writer.getUnique()
         doLabel = f'do{unique}'
         whLabel = f'wh{unique}'
-        writer.writerLabel(doLabel)
+        writer.writeLabel(doLabel)
         # 'while'
         tokenizer.advance()
         # (
@@ -213,7 +215,7 @@ class DoStatement:
         # ... (subroutineCall)
         self.subroutineCall = SubroutineCall(writer, tokenizer)
         # ;
-        writer.writerPop('temp', 0)
+        writer.writePop('temp', 0)
         tokenizer.advance()
 class ReturnStatement:
     def __init__(self, writer, tokenizer) -> None:
@@ -232,16 +234,13 @@ class ReturnStatement:
 
 class Expression:
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('expression')
-        self.terms = [Term(writer, tokenizer)]
-        self.ops = []
+        Term(writer, tokenizer)
         while tokenizer.peekNextToken().string in Op.triggers:
-            self.ops.append(Op(writer, tokenizer))
-            self.terms.append(Term(writer, tokenizer))
-        writer.writeNonTerminal('expression', True)
+            op = Op(writer, tokenizer)
+            Term(writer, tokenizer)
+            writer.writeArithmetic(op.vm)
 class Term:
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('term')
         # uniquely in this method, the tokenizer eats the token imediately. to allow to simply get the token byond this
         # ( in future, might want to make new Tokenizer.peekNextNextToken() )
         token = tokenizer.advance()
@@ -255,69 +254,100 @@ class Term:
         isAnotherExpression = (token.string == '(')
         isUnaryOp = (token.string in UnaryOp.triggers)
         
-        if isIntergerConstant or isStringConstant or isKeywordConstant:
-            self.mainVal = writer.writeTokenXml(tokenizer.getToken())
+        if isIntergerConstant:
+            writer.writePush('constant', token.string)
+        elif isKeywordConstant:
+            if token.string in ['null', 'false']:
+                writer.writePush('constant', 0)
+            elif token.string == 'false':
+                writer.writePush('constant', 1)
+                writer.writeArithmetic('neg')
+            else:
+                # TODO !!!
+                pass
+        elif isStringConstant:
+            string = tokenizer.getToken().string
+            writer.writePush('constant', len(string))
+            writer.writeCall('String.new', 1)
+            for char in string:
+                writer.writePush('constant', ord(char))
+                writer.writeCall('String.appendChar', 1)
         elif isVarName:
-            self.mainVal = writer.writeTokenXml(tokenizer.getToken())
+            var = writer.getByName(tokenizer.getToken().string)
+            writer.writePush(var["kind"], var["index"])
             if tokenizer.peekNextToken().string == '[':
                 # [
-                writer.writeTokenXml(tokenizer.advance())
-                self.expression = Expression(writer, tokenizer)
+                tokenizer.advance()
+                Expression(writer, tokenizer)
+                writer.writeArithmetic('add')
+                writer.writePop('pointer', 1)
+                writer.writePush('that', 0)
                 # ]
-                writer.writeTokenXml(tokenizer.advance())
+                tokenizer.advance()
         elif isSubroutineCall:
             self.subroutineCall = SubroutineCall(writer, tokenizer, token)
         elif isAnotherExpression:
             # (
-            writer.writeTokenXml(tokenizer.getToken())
-            self.expression = Expression(writer, tokenizer)
+            tokenizer.getToken()
+            Expression(writer, tokenizer)
             # )
-            writer.writeTokenXml(tokenizer.advance())
+            tokenizer.advance()
         elif isUnaryOp:
-            self.unaryOp = UnaryOp(writer, tokenizer, token)
-            self.term = Term(writer, tokenizer)
+            unaryOp = UnaryOp(writer, tokenizer, token)
+            Term(writer, tokenizer)
+            writer.writeArithmetic(unaryOp.vm)
         else: print("./10/CE.py @Term: no match found")
-        writer.writeNonTerminal('term', True)
 class SubroutineCall:
     nextTriggers = ["(", "."]
     def __init__(self, writer, tokenizer, currentToken=None) -> None:
         # className | varName
-        if currentToken == None: self.mainName = writer.writeTokenXml(tokenizer.advance()).string
-        else: self.mainName = writer.writeTokenXml(tokenizer.getToken()).string
+        if currentToken == None: self.mainName = tokenizer.advance().string
+        else: self.mainName = tokenizer.getToken().string
+        isMethodCall = writer.getByName(self.mainName) != None
         # ?
-        self.subroutineName = None
+        self.subroutineName = '.'
         if tokenizer.peekNextToken().string == '.':
             # .
-            writer.writeTokenXml(tokenizer.advance())
+            tokenizer.advance()
             # subroutineName
-            self.subroutineName = writer.writeTokenXml(tokenizer.advance()).string
+            self.subroutineName += tokenizer.advance().string
+        else:
+            self.subroutineName = ''
         # (
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
         # expressionList
+        if isMethodCall:
+            this = writer.getByName(self.mainName)
+            writer.writePop(this["kind"], this["index"])
         self.expressionList = ExpressionList(writer, tokenizer)
+        if not isMethodCall:
+            writer.writeCall(f'{self.mainName}{self.subroutineName}', self.expressionList.argsCount)
+        else:
+            writer.writeCall(f'{writer.getByName(self.mainName)["type"]}{self.subroutineName}', self.expressionList.argsCount +1)
         # )
-        writer.writeTokenXml(tokenizer.advance())
+        tokenizer.advance()
 class ExpressionList:
     def __init__(self, writer, tokenizer) -> None:
-        writer.writeNonTerminal('expressionList')
-        self.expressions = []
+        self.argsCount = 0
         # expression
         if tokenizer.peekNextToken().string != ')':
-            self.expressions.append(Expression(writer, tokenizer))
+            Expression(writer, tokenizer)
+            self.argsCount += 1
         while tokenizer.peekNextToken().string == ',':
             # ,
-            writer.writeTokenXml(tokenizer.advance())
+            tokenizer.advance()
             # expression
-            self.expressions.append(Expression(writer, tokenizer))
-        writer.writeNonTerminal('expressionList', True)
+            Expression(writer, tokenizer)
+            self.argsCount += 1
 class Op:
     triggers = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
+    vmLang = ['add', 'sub', 'call Math.multiply 2', 'call Math.divide 2', 'and', 'or', 'lt', 'gt', 'eq']
     def __init__(self, writer, tokenizer) -> None:
-        self.op = writer.writeTokenXml(tokenizer.advance())
+        self.vm = self.vmLang[self.triggers.index(tokenizer.advance().string)]
 class UnaryOp:
     triggers = ['-', '~']
     def __init__(self, writer, tokenizer, currentToken) -> None:
-        self.unaryOp = writer.writeTokenXml(currentToken)
+        self.vm = 'neg'
 class KeywordConstant:
     triggers = ['true', 'false', 'null', 'this']
     def __init__(self, writer, tokenizer, currentToken) -> None:
