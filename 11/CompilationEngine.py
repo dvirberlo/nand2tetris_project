@@ -13,9 +13,6 @@ class CompilationEngine:
     def start(self):
         while self.tokenizer.hasMoreTokens():
             if self.tokenizer.peekNextToken().string != 'class':
-                # print(self.writer.classScope.table)
-                # print(self.writer.subroutineScope.table)
-                print(self.writer.getByName('square'))
                 return print('ERROR!!!!! non-class root token ['+self.tokenizer.getToken().string+'->'+self.tokenizer.peekNextToken().string+']')
             Class(self.writer, self.tokenizer)
 
@@ -48,7 +45,6 @@ class ClassVarDec:
         type = tokenizer.advance().string
         # varName + *(, varName)
         writer.classScope.define(tokenizer.advance().string, type, kind)
-        self.varNames = [tokenizer.advance().string]
         while tokenizer.peekNextToken().string != ';':
             # ,
             tokenizer.advance()
@@ -60,22 +56,34 @@ class SubroutineDec:
     triggers = ['constructor', 'function', 'method']
     def __init__(self, writer, tokenizer) -> None:
         writer.subroutineScope = SymbolTable()
-        # in ['constructor', 'function', 'method' => +1 (for 'this')]
-        localsCount = 1 if tokenizer.advance().string == 'method' else 0
+        # in ['constructor', 'function', 'method']
+        keyword = tokenizer.advance().string
+        isMethod = keyword == 'method'
+        isConstructor = keyword == 'constructor'
         # 'void' | type
         tokenizer.advance().string
         # subroutineName
         subroutineName = tokenizer.advance().string
         # parameterList
-        for [type, name] in ParameterList(writer, tokenizer).parameters:
+        if isMethod:
+            writer.subroutineScope.define('this', 'Array', 'argument')
+        for type, name in ParameterList(writer, tokenizer).parameters:
             writer.subroutineScope.define(name, type, 'argument')
         # subroutineBody:
         # {
         tokenizer.advance()
         # varDecs
+        localsCount = 0
         while tokenizer.peekNextToken().string in VarDec.triggers:
             localsCount += VarDec(writer, tokenizer).varCount
         writer.writeFunction(f'{writer.className}.{subroutineName}', localsCount)
+        if isMethod:
+            writer.writePush('argument', 0)
+            writer.writePop('pointer', 0)
+        elif isConstructor:
+            writer.writePush('constant', writer.classScope.countByKind('this'))
+            writer.writeCall('Memory.alloc', 1)
+            writer.writePop('pointer', 0)
         
         # statements
         self.statements = Statements(writer, tokenizer)
@@ -309,6 +317,7 @@ class SubroutineCall:
         if currentToken == None: self.mainName = tokenizer.advance().string
         else: self.mainName = tokenizer.getToken().string
         isMethodCall = writer.getByName(self.mainName) != None
+        isClassMethod = False
         # ?
         self.subroutineName = '.'
         if tokenizer.peekNextToken().string == '.':
@@ -318,14 +327,20 @@ class SubroutineCall:
             self.subroutineName += tokenizer.advance().string
         else:
             self.subroutineName = ''
+            isClassMethod = True
+            writer.writePush('pointer', 0)
         # (
         tokenizer.advance()
         # expressionList
         if isMethodCall:
             this = writer.getByName(self.mainName)
-            writer.writePop(this["kind"], this["index"])
+            writer.writePush(this["kind"], this["index"])
+        
         self.expressionList = ExpressionList(writer, tokenizer)
-        if not isMethodCall:
+        
+        if isClassMethod:
+            writer.writeCall(f'{writer.className}.{self.mainName}', self.expressionList.argsCount + 1)
+        elif not isMethodCall:
             writer.writeCall(f'{self.mainName}{self.subroutineName}', self.expressionList.argsCount)
         else:
             writer.writeCall(f'{writer.getByName(self.mainName)["type"]}{self.subroutineName}', self.expressionList.argsCount +1)
