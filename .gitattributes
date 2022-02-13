@@ -9,5 +9,4 @@
 **/*.jack linguist-vendored
 
 **/*.hdl linguist-vendored=false
-./04/**/*.asm linguist-vendored=false
 **/*.py linguist-vendored=false
