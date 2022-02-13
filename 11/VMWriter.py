@@ -4,7 +4,7 @@ class SymbolTable:
     def __init__(self) -> None:
         self.table = []
     
-    def definde(self, name, type, kind) -> None:
+    def define(self, name, type, kind) -> None:
         self.table.append({
             "name": name,
             "type": type,

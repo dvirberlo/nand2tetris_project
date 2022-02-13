@@ -25,7 +25,7 @@ class Class:
         # 'class'
         tokenizer.advance()
         # className
-        writer.className = tokenizer.advance()
+        writer.className = tokenizer.advance().string
         # {
         tokenizer.advance()
         while tokenizer.peekNextToken().string in ClassVarDec.triggers:
@@ -37,14 +37,14 @@ class Class:
         tokenizer.advance()
 class ClassVarDec:
     triggers = ['static', 'field']
+    vmSegment = ['static', 'this']
     def __init__(self, writer, tokenizer) -> None:
         # in ['static', 'field']
-        kind = tokenizer.advance().string
+        kind = self.vmSegment[self.triggers.index(tokenizer.advance().string)]
         # type
         type = tokenizer.advance().string
         # varName + *(, varName)
         writer.classScope.define(tokenizer.advance().string, type, kind)
-        self.varNames = [tokenizer.advance().string]
         while tokenizer.peekNextToken().string != ';':
             # ,
             tokenizer.advance()
@@ -52,31 +52,38 @@ class ClassVarDec:
             writer.classScope.define(tokenizer.advance().string, type, kind)
         # ;
         tokenizer.advance()
-
-        for name in self.varNames:
-            writer.classScope.definde(name, self.varType, self.keyword)
 class SubroutineDec:
     triggers = ['constructor', 'function', 'method']
     def __init__(self, writer, tokenizer) -> None:
         writer.subroutineScope = SymbolTable()
-        # in ['constructor', 'function', 'method' => +1 (for 'this')]
-        localsCount = 1 if tokenizer.advance().string == 'method' else 0
+        # in ['constructor', 'function', 'method']
+        keyword = tokenizer.advance().string
+        isMethod = keyword == 'method'
+        isConstructor = keyword == 'constructor'
         # 'void' | type
         tokenizer.advance().string
         # subroutineName
-        name = tokenizer.advance().string
+        subroutineName = tokenizer.advance().string
         # parameterList
-        for [type, name] in ParameterList(writer, tokenizer).parameters:
-            writer.subroutineScope.definde(name, type, 'argument')
+        if isMethod:
+            writer.subroutineScope.define('this', 'Array', 'argument')
+        for type, name in ParameterList(writer, tokenizer).parameters:
+            writer.subroutineScope.define(name, type, 'argument')
         # subroutineBody:
         # {
         tokenizer.advance()
         # varDecs
-        self.varDecs = []
+        localsCount = 0
         while tokenizer.peekNextToken().string in VarDec.triggers:
-            self.varDecs.append(VarDec(writer, tokenizer))
-            localsCount += 1
-        writer.writeFunction(name, localsCount)
+            localsCount += VarDec(writer, tokenizer).varCount
+        writer.writeFunction(f'{writer.className}.{subroutineName}', localsCount)
+        if isMethod:
+            writer.writePush('argument', 0)
+            writer.writePop('pointer', 0)
+        elif isConstructor:
+            writer.writePush('constant', writer.classScope.countByKind('this'))
+            writer.writeCall('Memory.alloc', 1)
+            writer.writePop('pointer', 0)
         
         # statements
         self.statements = Statements(writer, tokenizer)
@@ -106,12 +113,14 @@ class VarDec:
         # type
         type = tokenizer.advance().string
         # varName + *(, varName)
-        writer.subroutineScope.definde(tokenizer.advance().string, type, 'local')
+        writer.subroutineScope.define(tokenizer.advance().string, type, 'local')
+        self.varCount = 1
         while tokenizer.peekNextToken().string != ';':
             # ,
             tokenizer.advance()
             # varName
-            writer.subroutineScope.definde(tokenizer.advance().string, type, 'local')
+            writer.subroutineScope.define(tokenizer.advance().string, type, 'local')
+            self.varCount += 1
         # ;
         tokenizer.advance()
 
@@ -162,15 +171,18 @@ class IfStatement:
         tokenizer.advance()
         # expression
         Expression(writer, tokenizer)
+        writer.writeArithmetic('not')
         # )
-        elseLabel = f'el{writer.getUnique()}'
-        writer.writeArithmetic('neg')
+        unique = writer.getUnique()
+        elseLabel = f'el{unique}'
+        ifLabel = f'if{unique}'
         writer.writeIfGoto(elseLabel)
         tokenizer.advance()
         # {
         tokenizer.advance()
         # statements
         Statements(writer, tokenizer)
+        writer.writeGoto(ifLabel)
         # }
         tokenizer.advance()
         # ?
@@ -184,6 +196,7 @@ class IfStatement:
             Statements(writer, tokenizer)
             # }
             tokenizer.advance()
+        writer.writeLabel(ifLabel)
 class WhileStatement:
     def __init__(self, writer, tokenizer) -> None:
         unique = writer.getUnique()
@@ -196,8 +209,8 @@ class WhileStatement:
         tokenizer.advance()
         # expression
         Expression(writer, tokenizer)
+        writer.writeArithmetic('not')
         # )
-        writer.writeArithmetic('neg')
         writer.writeIfGoto(whLabel)
         tokenizer.advance()
         # {
@@ -206,7 +219,7 @@ class WhileStatement:
         Statements(writer, tokenizer)
         # }
         tokenizer.advance()
-        writer.writeLabel(doLabel)
+        writer.writeGoto(doLabel)
         writer.writeLabel(whLabel)
 class DoStatement:
     def __init__(self, writer, tokenizer) -> None:
@@ -259,19 +272,19 @@ class Term:
         elif isKeywordConstant:
             if token.string in ['null', 'false']:
                 writer.writePush('constant', 0)
-            elif token.string == 'false':
+            elif token.string == 'true':
                 writer.writePush('constant', 1)
                 writer.writeArithmetic('neg')
             else:
-                # TODO !!!
-                pass
+                # this
+                writer.writePush('pointer', 0)
         elif isStringConstant:
             string = tokenizer.getToken().string
             writer.writePush('constant', len(string))
             writer.writeCall('String.new', 1)
             for char in string:
                 writer.writePush('constant', ord(char))
-                writer.writeCall('String.appendChar', 1)
+                writer.writeCall('String.appendChar', 2)
         elif isVarName:
             var = writer.getByName(tokenizer.getToken().string)
             writer.writePush(var["kind"], var["index"])
@@ -304,6 +317,7 @@ class SubroutineCall:
         if currentToken == None: self.mainName = tokenizer.advance().string
         else: self.mainName = tokenizer.getToken().string
         isMethodCall = writer.getByName(self.mainName) != None
+        isClassMethod = False
         # ?
         self.subroutineName = '.'
         if tokenizer.peekNextToken().string == '.':
@@ -313,14 +327,20 @@ class SubroutineCall:
             self.subroutineName += tokenizer.advance().string
         else:
             self.subroutineName = ''
+            isClassMethod = True
+            writer.writePush('pointer', 0)
         # (
         tokenizer.advance()
         # expressionList
         if isMethodCall:
             this = writer.getByName(self.mainName)
-            writer.writePop(this["kind"], this["index"])
+            writer.writePush(this["kind"], this["index"])
+        
         self.expressionList = ExpressionList(writer, tokenizer)
-        if not isMethodCall:
+        
+        if isClassMethod:
+            writer.writeCall(f'{writer.className}.{self.mainName}', self.expressionList.argsCount + 1)
+        elif not isMethodCall:
             writer.writeCall(f'{self.mainName}{self.subroutineName}', self.expressionList.argsCount)
         else:
             writer.writeCall(f'{writer.getByName(self.mainName)["type"]}{self.subroutineName}', self.expressionList.argsCount +1)
@@ -346,8 +366,9 @@ class Op:
         self.vm = self.vmLang[self.triggers.index(tokenizer.advance().string)]
 class UnaryOp:
     triggers = ['-', '~']
+    vmLang = ['neg', 'not']
     def __init__(self, writer, tokenizer, currentToken) -> None:
-        self.vm = 'neg'
+        self.vm = self.vmLang[self.triggers.index(currentToken.string)]
 class KeywordConstant:
     triggers = ['true', 'false', 'null', 'this']
     def __init__(self, writer, tokenizer, currentToken) -> None:
