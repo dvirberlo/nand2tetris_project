@@ -284,7 +284,7 @@ class Term:
             writer.writeCall('String.new', 1)
             for char in string:
                 writer.writePush('constant', ord(char))
-                writer.writeCall('String.appendChar', 1)
+                writer.writeCall('String.appendChar', 2)
         elif isVarName:
             var = writer.getByName(tokenizer.getToken().string)
             writer.writePush(var["kind"], var["index"])
